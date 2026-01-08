@@ -1,5 +1,5 @@
 //
-//  gym_broApp.swift
+//  GymBroApp.swift
 //  gym-bro
 //
 //  Created by Moritz Gößl on 08.01.26.
@@ -9,10 +9,13 @@ import SwiftUI
 import SwiftData
 
 @main
-struct gym_broApp: App {
+struct GymBroApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Exercise.self,
+            Split.self,
+            WorkoutSession.self,
+            WorkoutSet.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,7 +28,7 @@ struct gym_broApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Text("Hello, world")
         }
         .modelContainer(sharedModelContainer)
     }
