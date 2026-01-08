@@ -42,8 +42,14 @@ class Exercise: Identifiable {
         self.minReps = minReps
         self.maxReps = maxReps
     }
-    
+
     var hasTargetWeight: Bool { targetWeight != nil }
     var hasTargetSets: Bool { targetSets != nil }
     var hasTargetReps: Bool { minReps != nil && maxReps != nil }
+    var hasTarget: Bool { hasTargetWeight && hasTargetSets && hasTargetReps }
+
+    var splitNames: String? {
+        splits != nil && splits!.count > 0
+            ? splits!.map { $0.name }.joined(separator: ", ") : nil
+    }
 }

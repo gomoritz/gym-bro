@@ -64,6 +64,10 @@ extension Exercise {
             minReps: 8,
             maxReps: 12
         ),
+        Exercise(
+            name: "Stairmaster",
+            notes: "Nicht zu oft",
+        )
     ]
 }
 
