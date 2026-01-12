@@ -93,6 +93,9 @@ struct RestTimerView: View {
                 
                 // Dismiss button
                 Button(action: {
+                    // Always ensure timer is stopped/invalidated when manually continuing
+                    // If it was running, toggle stops it.
+                    // If it was finished (but state kept active for UI), toggle stops it.
                     sessionManager.toggleTimer()
                     dismiss()
                 }) {
@@ -116,6 +119,8 @@ struct RestTimerView: View {
             sessionManager.onTimerComplete = { [weak sessionManager] in
                 // Wait 2 seconds to show "Rest complete!" state
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    // Check if view is still presented (simplest way is just to act)
+                    // We must STOP the timer state so it doesn't stay "active=true" with 0 time.
                     sessionManager?.toggleTimer()
                     dismiss()
                 }

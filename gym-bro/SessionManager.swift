@@ -8,6 +8,7 @@
 import Foundation
 import SwiftData
 import UIKit
+import AudioToolbox
 
 @Observable
 class SessionManager: Identifiable, Hashable {
@@ -260,7 +261,29 @@ class SessionManager: Identifiable, Hashable {
                 // because we'll use Text(timerInterval:)
             } else {
                 // Timer finished
-                self.stopTimer()
+                
+                // 1. Trigger Vibration (Foreground)
+                AudioServicesPlayAlertSound(SystemSoundID(kSystemSoundID_Vibrate))
+                
+                // 2. Update local state
+                self.timer?.invalidate()
+                self.timer = nil
+                self.restTimeRemaining = 0
+                // NOTE: We do NOT set isRestTimerActive = false yet, so that the UI can show "Rest Complete" 
+                // and the "Continue" button (which calls toggleTimer) can correctly STOP it (by seeing it matches active).
+                
+                // 3. Update Live Activity to show expired state (triggers alert in background if allowed)
+                Task { @MainActor in
+                    RestTimerActivityManager.shared.updateActivity(
+                        remainingSeconds: 0
+                    )
+                    
+                    // If in foreground, cancel the notification so it doesn't double-trigger
+                    if UIApplication.shared.applicationState == .active {
+                        RestTimerActivityManager.shared.cancelNotification()
+                    }
+                }
+                
                 self.onTimerComplete?()
             }
         }
