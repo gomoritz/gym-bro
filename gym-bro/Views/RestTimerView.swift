@@ -76,6 +76,20 @@ struct RestTimerView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            // Set up auto-dismiss callback
+            sessionManager.onTimerComplete = { [weak sessionManager] in
+                // Wait 2 seconds to show "Rest complete!" state
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    sessionManager?.toggleTimer()
+                    dismiss()
+                }
+            }
+        }
+        .onDisappear {
+            // Clean up callback
+            sessionManager.onTimerComplete = nil
+        }
     }
     
     private var progress: CGFloat {

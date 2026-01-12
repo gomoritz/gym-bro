@@ -6,11 +6,51 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8E4A86512F15627200F77298 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E4A86502F15627200F77298 /* WidgetKit.framework */; };
+		8E4A86532F15627200F77298 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E4A86522F15627200F77298 /* SwiftUI.framework */; };
+		8E4A86642F15627300F77298 /* RestTimerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8E4A864E2F15627200F77298 /* RestTimerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8E4A86622F15627300F77298 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8ECE62472F0FF320009C2BD4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8E4A864D2F15627200F77298;
+			remoteInfo = RestTimerWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		8E4A86692F15627300F77298 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				8E4A86642F15627300F77298 /* RestTimerWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		8E4A864E2F15627200F77298 /* RestTimerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RestTimerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8E4A86502F15627200F77298 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		8E4A86522F15627200F77298 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		8ECE624F2F0FF320009C2BD4 /* gym-bro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "gym-bro.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8E4A86682F15627300F77298 /* Exceptions for "RestTimerWidget" folder in "RestTimerWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8E4A864D2F15627200F77298 /* RestTimerWidgetExtension */;
+		};
 		8ECE625C2F0FF321009C2BD4 /* Exceptions for "gym-bro" folder in "gym-bro" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -21,6 +61,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		8E4A86542F15627200F77298 /* RestTimerWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8E4A86682F15627300F77298 /* Exceptions for "RestTimerWidget" folder in "RestTimerWidgetExtension" target */,
+			);
+			path = RestTimerWidget;
+			sourceTree = "<group>";
+		};
 		8ECE62512F0FF320009C2BD4 /* gym-bro */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -32,6 +80,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		8E4A864B2F15627200F77298 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8E4A86532F15627200F77298 /* SwiftUI.framework in Frameworks */,
+				8E4A86512F15627200F77298 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8ECE624C2F0FF320009C2BD4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -42,10 +99,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8E4A864F2F15627200F77298 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				8E4A86502F15627200F77298 /* WidgetKit.framework */,
+				8E4A86522F15627200F77298 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		8ECE62462F0FF320009C2BD4 = {
 			isa = PBXGroup;
 			children = (
 				8ECE62512F0FF320009C2BD4 /* gym-bro */,
+				8E4A86542F15627200F77298 /* RestTimerWidget */,
+				8E4A864F2F15627200F77298 /* Frameworks */,
 				8ECE62502F0FF320009C2BD4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +122,7 @@
 			isa = PBXGroup;
 			children = (
 				8ECE624F2F0FF320009C2BD4 /* gym-bro.app */,
+				8E4A864E2F15627200F77298 /* RestTimerWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +130,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		8E4A864D2F15627200F77298 /* RestTimerWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8E4A86652F15627300F77298 /* Build configuration list for PBXNativeTarget "RestTimerWidgetExtension" */;
+			buildPhases = (
+				8E4A864A2F15627200F77298 /* Sources */,
+				8E4A864B2F15627200F77298 /* Frameworks */,
+				8E4A864C2F15627200F77298 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8E4A86542F15627200F77298 /* RestTimerWidget */,
+			);
+			name = RestTimerWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = RestTimerWidgetExtension;
+			productReference = 8E4A864E2F15627200F77298 /* RestTimerWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		8ECE624E2F0FF320009C2BD4 /* gym-bro */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8ECE625D2F0FF321009C2BD4 /* Build configuration list for PBXNativeTarget "gym-bro" */;
@@ -68,10 +159,12 @@
 				8ECE624B2F0FF320009C2BD4 /* Sources */,
 				8ECE624C2F0FF320009C2BD4 /* Frameworks */,
 				8ECE624D2F0FF320009C2BD4 /* Resources */,
+				8E4A86692F15627300F77298 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				8E4A86632F15627300F77298 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				8ECE62512F0FF320009C2BD4 /* gym-bro */,
@@ -93,6 +186,9 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					8E4A864D2F15627200F77298 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					8ECE624E2F0FF320009C2BD4 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -113,11 +209,19 @@
 			projectRoot = "";
 			targets = (
 				8ECE624E2F0FF320009C2BD4 /* gym-bro */,
+				8E4A864D2F15627200F77298 /* RestTimerWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		8E4A864C2F15627200F77298 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8ECE624D2F0FF320009C2BD4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +232,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		8E4A864A2F15627200F77298 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8ECE624B2F0FF320009C2BD4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,7 +248,75 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		8E4A86632F15627300F77298 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8E4A864D2F15627200F77298 /* RestTimerWidgetExtension */;
+			targetProxy = 8E4A86622F15627300F77298 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		8E4A86662F15627300F77298 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XTA9CPY447;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RestTimerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RestTimerWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "me.goessl.gym-bro.RestTimerWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8E4A86672F15627300F77298 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XTA9CPY447;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RestTimerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RestTimerWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "me.goessl.gym-bro.RestTimerWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		8ECE625E2F0FF321009C2BD4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -332,6 +511,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		8E4A86652F15627300F77298 /* Build configuration list for PBXNativeTarget "RestTimerWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8E4A86662F15627300F77298 /* Debug */,
+				8E4A86672F15627300F77298 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		8ECE624A2F0FF320009C2BD4 /* Build configuration list for PBXProject "gym-bro" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

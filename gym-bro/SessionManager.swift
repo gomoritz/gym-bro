@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+import UIKit
 
 @Observable
 class SessionManager: Identifiable, Hashable {
@@ -15,9 +16,10 @@ class SessionManager: Identifiable, Hashable {
     var currentSplit: Split?
     var currentExerciseIndex: Int = 0
     var isRestTimerActive: Bool = false
-    var restTimerDuration: TimeInterval = 120 // 2 minutes
+    var restTimerDuration: TimeInterval = 20 // 2 minutes
     var restTimeRemaining: TimeInterval = 120
     var activeSession: WorkoutSession?
+    var onTimerComplete: (() -> Void)?
     
     private var modelContext: ModelContext?
     private var timer: Timer?
@@ -187,6 +189,10 @@ class SessionManager: Identifiable, Hashable {
     
     // MARK: - Timer Management
     
+    private var timerEndTime: Date?
+    
+    // ...
+
     func toggleTimer() {
         if isRestTimerActive {
             stopTimer()
@@ -195,18 +201,56 @@ class SessionManager: Identifiable, Hashable {
         }
     }
     
-    private func startTimer() {
+    func startTimer() {
+        // Request notification permission if needed
+        Task { @MainActor in
+            RestTimerActivityManager.shared.requestNotificationAuthorization()
+        }
+        
         restTimeRemaining = restTimerDuration
+        timerEndTime = Date().addingTimeInterval(restTimerDuration)
         isRestTimerActive = true
         
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
+        // Start Live Activity
+        let exerciseName = currentExercise?.name ?? "Rest"
+        Task { @MainActor in
+            RestTimerActivityManager.shared.startActivity(
+                exerciseName: exerciseName,
+                duration: restTimerDuration
+            )
+        }
+        
+        // Timer fires every 0.1s for smoother UI updates, though UI might throttle
+        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self = self, let endTime = self.timerEndTime else { return }
             
-            if self.restTimeRemaining > 0 {
-                self.restTimeRemaining -= 1
+            let remaining = endTime.timeIntervalSinceNow
+            
+            if remaining > 0 {
+                self.restTimeRemaining = remaining
+                // We don't need to update Live Activity repeatedly for countdown 
+                // because we'll use Text(timerInterval:)
             } else {
-                // Timer finished, but keep it visible in red state
-                // User must manually dismiss it
+                // Timer finished
+                self.timer?.invalidate()
+                self.timer = nil
+                self.isRestTimerActive = false
+                self.restTimeRemaining = 0
+                
+                // Update Live Activity to show expired state (0 seconds)
+                Task { @MainActor in
+                    RestTimerActivityManager.shared.updateActivity(
+                        remainingSeconds: 0
+                    )
+                    
+                    // If we are in the foreground, we can cancel the pending notification
+                    // (optional, depending on desired behavior, but good for "alert only if background")
+                     if UIApplication.shared.applicationState == .active {
+                        RestTimerActivityManager.shared.cancelNotification()
+                    }
+                }
+                
+                self.onTimerComplete?()
             }
         }
     }
@@ -214,8 +258,14 @@ class SessionManager: Identifiable, Hashable {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+        timerEndTime = nil
         isRestTimerActive = false
         restTimeRemaining = restTimerDuration
+        
+        // End Live Activity manually
+        Task { @MainActor in
+            RestTimerActivityManager.shared.endActivity()
+        }
     }
     
     deinit {

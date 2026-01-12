@@ -308,7 +308,7 @@ struct ActiveSessionView: View {
         }
 
         // Start the timer and navigate to timer view
-        sessionManager.toggleTimer()
+        sessionManager.startTimer()
         showTimerView = true
     }
 
