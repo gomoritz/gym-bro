@@ -15,6 +15,7 @@ class WorkoutSet: Identifiable {
     var startTime: Date
     var weight: Double?
     var reps: Int?
+    var duration: Int? // Duration in minutes for exercises without targets
 
     var exercise: Exercise?
     var session: WorkoutSession?
@@ -24,6 +25,7 @@ class WorkoutSet: Identifiable {
         startTime: Date = Date.now,
         weight: Double? = nil,
         reps: Int? = nil,
+        duration: Int? = nil,
         exercise: Exercise? = nil,
         session: WorkoutSession? = nil
     ) {
@@ -31,6 +33,7 @@ class WorkoutSet: Identifiable {
         self.startTime = startTime
         self.weight = weight
         self.reps = reps
+        self.duration = duration
         self.exercise = exercise
         self.session = session
     }

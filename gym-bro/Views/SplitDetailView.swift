@@ -14,6 +14,7 @@ struct SplitDetailView: View {
     @Bindable var split: Split
 
     @State private var isPresentingExercisePicker = false
+    @State private var sessionManager: SessionManager?
 
     var body: some View {
         List {
@@ -35,6 +36,18 @@ struct SplitDetailView: View {
             }
         }
         .navigationTitle(split.name)
+        .navigationDestination(item: $sessionManager) { manager in
+            ActiveSessionView(sessionManager: manager)
+        }
+        .toolbar {
+            if let exercises = split.exercises, !exercises.isEmpty {
+                Button("Start Workout") {
+                    let manager = SessionManager()
+                    manager.startSession(for: split, context: modelContext)
+                    sessionManager = manager
+                }
+            }
+        }
         .sheet(isPresented: $isPresentingExercisePicker) {
             ExercisePickerView(split: split)
         }
