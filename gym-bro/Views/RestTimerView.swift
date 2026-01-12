@@ -42,26 +42,61 @@ struct RestTimerView: View {
                             .foregroundStyle(.white)
                             .monospacedDigit()
                         
-                        Text("Rest Timer")
+                        Text(sessionManager.transitionToExercise != nil ? "Next Up" : "Rest Timer")
                             .font(.title3)
                             .foregroundStyle(.white.opacity(0.8))
                     }
                 }
                 
+                // Exercise Details (moved outside circle)
+                if let transitionExercise = sessionManager.transitionToExercise {
+                    VStack(spacing: 8) {
+                        Text(transitionExercise.name)
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        // Target/Notes
+                        if let target = getTargetString(for: transitionExercise) {
+                                Text(target)
+                                .font(.headline)
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        
+                        if let notes = transitionExercise.notes {
+                            Text(notes)
+                                .font(.body)
+                                .foregroundStyle(.white.opacity(0.8))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                                .fixedSize(horizontal: false, vertical: true) // Allow unlimited height
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
                 Spacer()
                 
                 // Status text
-                Text(sessionManager.restTimeRemaining > 0 ? "Rest in progress" : "Rest complete!")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                if sessionManager.restTimeRemaining > 0 {
+                    Text(sessionManager.transitionToExercise != nil ? "Get Ready!" : "Rest in progress")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                } else {
+                    Text(sessionManager.transitionToExercise != nil ? "Let's Go!" : "Rest complete!")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                }
                 
                 // Dismiss button
                 Button(action: {
                     sessionManager.toggleTimer()
                     dismiss()
                 }) {
-                    Text("Continue Workout")
+                    Text(sessionManager.transitionToExercise != nil ? "Start Exercise" : "Continue Workout")
                         .font(.headline)
                         .foregroundStyle(timerColor)
                         .frame(maxWidth: .infinity)
@@ -97,13 +132,33 @@ struct RestTimerView: View {
     }
     
     private var timerColor: Color {
-        sessionManager.restTimeRemaining > 0 ? .green : .red
+        if sessionManager.restTimeRemaining <= 0 {
+            return .red
+        }
+        return sessionManager.transitionToExercise != nil ? .blue : .green
     }
     
     private func formatTime(_ seconds: TimeInterval) -> String {
         let minutes = Int(seconds) / 60
         let remainingSeconds = Int(seconds) % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
+    }
+    
+    private func getTargetString(for exercise: Exercise) -> String? {
+        if exercise.hasTarget {
+            var parts: [String] = []
+            if let sets = exercise.targetSets {
+                parts.append("\(sets) sets")
+            }
+            if let min = exercise.minReps, let max = exercise.maxReps {
+                parts.append("\(min)-\(max) reps")
+            }
+            if let weight = exercise.targetWeight {
+                parts.append("@ \(Int(weight))kg")
+            }
+            return parts.joined(separator: " ")
+        }
+        return nil
     }
 }
 

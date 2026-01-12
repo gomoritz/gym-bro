@@ -334,7 +334,10 @@ struct ActiveSessionView: View {
 
         // Move to next exercise
         let success = sessionManager.nextExercise()
-        if !success {
+        if success {
+            // Show transition timer
+            showTimerView = true
+        } else {
             // No more exercises, show completion
             showEndSessionAlert = true
         }
@@ -360,7 +363,9 @@ struct ActiveSessionView: View {
                     weight = ""
                 }
 
-                if let minReps = exercise.minReps {
+                if let maxReps = exercise.maxReps {
+                    reps = "\(maxReps)"
+                } else if let minReps = exercise.minReps {
                     reps = "\(minReps)"
                 } else {
                     reps = ""

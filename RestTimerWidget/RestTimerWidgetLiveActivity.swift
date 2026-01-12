@@ -18,9 +18,9 @@ struct RestTimerLiveActivity: Widget {
             DynamicIsland {
                 // Expanded UI - Full timer display
                 DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: context.state.isExpired ? "exclamationmark.circle.fill" : "timer")
+                    Image(systemName: context.state.isExpired ? "exclamationmark.circle.fill" : (context.attributes.isTransition ? "arrow.right.circle.fill" : "timer"))
                         .font(.title2)
-                        .foregroundStyle(context.state.isExpired ? .red : .green)
+                        .foregroundStyle(timerColor(for: context))
                 }
                 
                 DynamicIslandExpandedRegion(.trailing) {
@@ -35,51 +35,67 @@ struct RestTimerLiveActivity: Widget {
                             .font(.title2)
                             .fontWeight(.bold)
                             .monospacedDigit()
-                            .foregroundStyle(.green)
+                            .foregroundStyle(timerColor(for: context))
                             .multilineTextAlignment(.trailing)
                     }
                 }
                 
                 DynamicIslandExpandedRegion(.center) {
-                    Text(context.state.isExpired ? "Rest Over!" : "Rest Timer")
-                        .font(.caption)
-                        .foregroundStyle(context.state.isExpired ? .primary : .secondary)
+                    VStack(alignment: .center) { // Centered alignment
+                        Text(context.state.isExpired ? (context.attributes.isTransition ? "Let's Go!" : "Rest Over!") : (context.attributes.isTransition ? "Next Up" : "Rest Timer"))
+                            .font(.caption)
+                            .foregroundStyle(context.state.isExpired ? .primary : .secondary)
+                        
+                        Text(context.attributes.exerciseName)
+                            .font(.headline)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity) // Ensure full width for centering
                 }
                 
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(spacing: 8) {
-                        // Progress bar
-                        GeometryReader { geometry in
-                            ZStack(alignment: .leading) {
-                                // Background
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(height: 8)
+                    VStack(spacing: 12) {
+                        // Details (Target / Notes)
+                        if context.attributes.isTransition {
+                            VStack(spacing: 4) { // Changed to VStack for more space
+                                if let target = context.attributes.target {
+                                    Label(target, systemImage: "target")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
                                 
-                                // Progress
-                                // Note: Smooth progress bar animation in background is limited.
-                                // We can use the progress view or accept it updates on snapshots.
-                                // For improved background reliability, a simple ProgressView(timerInterval:)
-                                // is preferred if supported, but custom drawing is okay for now.
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(context.state.isExpired ? Color.red : Color.green)
-                                    .frame(
-                                        width: context.state.isExpired ? geometry.size.width : geometry.size.width * CGFloat(context.state.remainingSeconds / context.attributes.restDuration),
-                                        height: 8
-                                    )
+                                if let notes = context.attributes.notes {
+                                    Label(notes, systemImage: "note.text")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .lineLimit(2) // Allow more lines
+                                }
                             }
                         }
-                        .frame(height: 8)
                         
-                        Text(context.attributes.exerciseName)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                        // Progress bar using native ProgressView for better reliability in Live Activities
+                        ProgressView(
+                            timerInterval: Date.now...context.state.endTime,
+                            countsDown: true,
+                            label: { EmptyView() },
+                            currentValueLabel: { EmptyView() }
+                        )
+                        .tint(timerColor(for: context))
+                        // Note: If ProgressView(timerInterval:) isn't visually suitable, we revert to manual
+                        // But Native ProgressView handles background updates better.
+                        // However, standard style is a thin bar. Let's try custom GeometryReader again but simpler
+                        // or ensure we aren't relying on rapid updates.
+                        // Actually, users usually prefer the visual bar. Let's stick to GeometryReader but ensure
+                        // context.state.remainingSeconds is valid. It might only update on state changes.
+                        // For smooth animation in a widget, we need `timerInterval` compatible views.
+                        // `ProgressView(timerInterval: ...)` IS the way to go for smooth updates.
+                        // Let's replace the custom one with the native one.
                     }
                 }
             } compactLeading: {
-                Image(systemName: context.state.isExpired ? "exclamationmark.circle.fill" : "timer")
-                    .foregroundStyle(context.state.isExpired ? .red : .green)
+                Image(systemName: context.state.isExpired ? "exclamationmark.circle.fill" : (context.attributes.isTransition ? "arrow.right.circle.fill" : "timer"))
+                    .foregroundStyle(timerColor(for: context))
             } compactTrailing: {
                 if context.state.isExpired {
                     Text("Time!")
@@ -92,15 +108,22 @@ struct RestTimerLiveActivity: Widget {
                         .font(.caption)
                         .fontWeight(.semibold)
                         .monospacedDigit()
-                        .foregroundStyle(.green)
+                        .foregroundStyle(timerColor(for: context))
                         .multilineTextAlignment(.trailing)
                 }
             } minimal: {
-                Image(systemName: context.state.isExpired ? "exclamationmark.circle.fill" : "timer")
-                    .foregroundStyle(context.state.isExpired ? .red : .green)
+                Image(systemName: context.state.isExpired ? "exclamationmark.circle.fill" : (context.attributes.isTransition ? "arrow.right.circle.fill" : "timer"))
+                    .foregroundStyle(timerColor(for: context))
             }
-            .keylineTint(context.state.isExpired ? .red : .green)
+            .keylineTint(timerColor(for: context))
         }
+    }
+    
+    func timerColor(for context: ActivityViewContext<RestTimerActivityAttributes>) -> Color {
+        if context.state.isExpired {
+            return .red
+        }
+        return context.attributes.isTransition ? .blue : .green
     }
 }
 
@@ -117,20 +140,35 @@ struct LockScreenRestTimerView: View {
                     .stroke(Color.white.opacity(0.2), lineWidth: 4)
                     .frame(width: 50, height: 50)
                 
+                // Note: Smoother rotation in lock screen is hard without timerInterval
+                // We fallback to a static "snapshot" of progress or use a full View that supports it.
+                // For now, keep as is.
                 Circle()
                     .trim(from: 0, to: progress)
                     .stroke(timerColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .frame(width: 50, height: 50)
                     .rotationEffect(.degrees(-90))
                 
-                Image(systemName: context.state.isExpired ? "exclamationmark" : "timer")
+                Image(systemName: context.state.isExpired ? "exclamationmark" : (context.attributes.isTransition ? "arrow.right" : "timer"))
                     .foregroundStyle(timerColor)
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(context.state.isExpired ? "Rest Over!" : "Rest Timer")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Text(context.state.isExpired ? (context.attributes.isTransition ? "Let's Go!" : "Rest Over!") : (context.attributes.isTransition ? "Next Up" : "Rest Timer"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    if context.attributes.isTransition {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(context.attributes.exerciseName)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.primary)
+                    }
+                }
                 
                 if context.state.isExpired {
                     Text("0:00")
@@ -143,19 +181,36 @@ struct LockScreenRestTimerView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                         .monospacedDigit()
-                        .foregroundStyle(.green)
+                        .foregroundStyle(timerColor)
                 }
                 
-                Text(context.attributes.exerciseName)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if context.attributes.isTransition {
+                     VStack(alignment: .leading, spacing: 2) { // Changed to VStack for vertical stacking
+                        if let target = context.attributes.target {
+                            Text(target)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let notes = context.attributes.notes {
+                            Text(notes)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2) // Increase line limit
+                        }
+                    }
+                } else {
+                    Text(context.attributes.exerciseName)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             
             Spacer()
         }
         .padding()
-        .activityBackgroundTint(Color.black.opacity(0.3))
+        .background(Color.black) // Solid black background
+        .activityBackgroundTint(nil) // Remove tint to allow solid background
         .activitySystemActionForegroundColor(.white)
     }
     
@@ -164,7 +219,10 @@ struct LockScreenRestTimerView: View {
     }
     
     private var timerColor: Color {
-        context.state.isExpired ? .red : .green
+        if context.state.isExpired {
+            return .red
+        }
+        return context.attributes.isTransition ? .cyan : .green // Use cyan for better visibility
     }
 }
 
@@ -172,7 +230,7 @@ struct LockScreenRestTimerView: View {
 
 extension RestTimerActivityAttributes {
     fileprivate static var preview: RestTimerActivityAttributes {
-        RestTimerActivityAttributes(exerciseName: "Bench Press", restDuration: 120)
+        RestTimerActivityAttributes(exerciseName: "Bench Press", restDuration: 120, isTransition: false)
     }
 }
 

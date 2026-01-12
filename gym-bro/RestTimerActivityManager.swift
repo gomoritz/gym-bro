@@ -58,7 +58,7 @@ class RestTimerActivityManager: NSObject {
     
     // MARK: - Activity Lifecycle
     
-    func startActivity(exerciseName: String, duration: TimeInterval) {
+    func startActivity(exerciseName: String, duration: TimeInterval, isTransition: Bool = false, target: String? = nil, notes: String? = nil) {
         // End any existing activity first
         endActivity()
         
@@ -70,7 +70,10 @@ class RestTimerActivityManager: NSObject {
         
         let attributes = RestTimerActivityAttributes(
             exerciseName: exerciseName,
-            restDuration: duration
+            restDuration: duration,
+            isTransition: isTransition,
+            target: target,
+            notes: notes
         )
         
         let initialState = RestTimerActivityAttributes.ContentState(

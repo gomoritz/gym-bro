@@ -15,6 +15,7 @@ class SessionManager: Identifiable, Hashable {
     
     var currentSplit: Split?
     var currentExerciseIndex: Int = 0
+    var transitionToExercise: Exercise?
     var isRestTimerActive: Bool = false
     var restTimerDuration: TimeInterval = 20 // 2 minutes
     var restTimeRemaining: TimeInterval = 120
@@ -70,6 +71,7 @@ class SessionManager: Identifiable, Hashable {
     func startSession(for split: Split, context: ModelContext) {
         self.currentSplit = split
         self.currentExerciseIndex = 0
+        self.transitionToExercise = nil
         self.modelContext = context
         
         let session = WorkoutSession(
@@ -161,7 +163,12 @@ class SessionManager: Identifiable, Hashable {
         
         // Check if there's a next exercise
         if currentExerciseIndex < exercises.count - 1 {
-            currentExerciseIndex += 1
+            // Set transition state
+            transitionToExercise = exercises[currentExerciseIndex + 1]
+            
+            // Start the transition timer
+            startTimer()
+            
             return true
         }
         
@@ -181,6 +188,7 @@ class SessionManager: Identifiable, Hashable {
         activeSession = nil
         currentSplit = nil
         currentExerciseIndex = 0
+        transitionToExercise = nil
         
         if isRestTimerActive {
             toggleTimer()
@@ -211,12 +219,32 @@ class SessionManager: Identifiable, Hashable {
         timerEndTime = Date().addingTimeInterval(restTimerDuration)
         isRestTimerActive = true
         
+        // Determine exercise name and details for Live Activity
+        let exerciseName: String
+        let isTransition: Bool
+        let target: String?
+        let notes: String?
+        
+        if let transition = transitionToExercise {
+            exerciseName = transition.name
+            isTransition = true
+            target = getTargetString(for: transition)
+            notes = transition.notes
+        } else {
+            exerciseName = currentExercise?.name ?? "Rest"
+            isTransition = false
+            target = nil
+            notes = nil
+        }
+        
         // Start Live Activity
-        let exerciseName = currentExercise?.name ?? "Rest"
         Task { @MainActor in
             RestTimerActivityManager.shared.startActivity(
                 exerciseName: exerciseName,
-                duration: restTimerDuration
+                duration: restTimerDuration,
+                isTransition: isTransition,
+                target: target,
+                notes: notes
             )
         }
         
@@ -232,24 +260,7 @@ class SessionManager: Identifiable, Hashable {
                 // because we'll use Text(timerInterval:)
             } else {
                 // Timer finished
-                self.timer?.invalidate()
-                self.timer = nil
-                self.isRestTimerActive = false
-                self.restTimeRemaining = 0
-                
-                // Update Live Activity to show expired state (0 seconds)
-                Task { @MainActor in
-                    RestTimerActivityManager.shared.updateActivity(
-                        remainingSeconds: 0
-                    )
-                    
-                    // If we are in the foreground, we can cancel the pending notification
-                    // (optional, depending on desired behavior, but good for "alert only if background")
-                     if UIApplication.shared.applicationState == .active {
-                        RestTimerActivityManager.shared.cancelNotification()
-                    }
-                }
-                
+                self.stopTimer()
                 self.onTimerComplete?()
             }
         }
@@ -261,6 +272,12 @@ class SessionManager: Identifiable, Hashable {
         timerEndTime = nil
         isRestTimerActive = false
         restTimeRemaining = restTimerDuration
+        
+        // Handle transition completion if applicable
+        if transitionToExercise != nil {
+            currentExerciseIndex += 1
+            transitionToExercise = nil
+        }
         
         // End Live Activity manually
         Task { @MainActor in
@@ -280,5 +297,22 @@ class SessionManager: Identifiable, Hashable {
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+    }
+    
+    private func getTargetString(for exercise: Exercise) -> String? {
+        if exercise.hasTarget {
+            var parts: [String] = []
+            if let sets = exercise.targetSets {
+                parts.append("\(sets) sets")
+            }
+            if let min = exercise.minReps, let max = exercise.maxReps {
+                parts.append("\(min)-\(max) reps")
+            }
+            if let weight = exercise.targetWeight {
+                parts.append("@ \(Int(weight))kg")
+            }
+            return parts.joined(separator: " ")
+        }
+        return nil
     }
 }

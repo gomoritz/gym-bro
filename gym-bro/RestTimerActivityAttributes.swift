@@ -19,4 +19,7 @@ struct RestTimerActivityAttributes: ActivityAttributes {
     // Static data that doesn't change during the activity
     var exerciseName: String
     var restDuration: TimeInterval
+    var isTransition: Bool
+    var target: String?
+    var notes: String?
 }
