@@ -27,17 +27,29 @@ struct RestTimerLiveActivity: Widget {
                     )
                     .font(.title2)
                     .foregroundStyle(timerColor(for: context))
+                    .padding(.leading, 4)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
                     if context.state.isExpired {
                         Text("Time!")
+                            .font(.title2)
+                            .fontWeight(.bold)
                             .monospacedDigit()
                             .foregroundStyle(.red)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .padding(.trailing, 4)
                     } else {
                         Text(timerInterval: Date.now...context.state.endTime)
+                            .font(.title2)
+                            .fontWeight(.bold)
                             .monospacedDigit()
                             .foregroundStyle(timerColor(for: context))
+                            .multilineTextAlignment(.trailing)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .padding(.trailing, 4)
                     }
                 }
 
@@ -54,12 +66,18 @@ struct RestTimerLiveActivity: Widget {
                         .foregroundStyle(
                             context.state.isExpired ? .primary : .secondary
                         )
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .allowsTightening(true)
+                        .minimumScaleFactor(0.8)
 
                         Text(context.attributes.exerciseName)
                             .font(.headline)
                             .lineLimit(1)
+                            .multilineTextAlignment(.center)
+                            .allowsTightening(true)
+                            .minimumScaleFactor(0.8)
                     }
-                    .frame(maxWidth: .infinity)  // Ensure full width for centering
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
@@ -70,6 +88,10 @@ struct RestTimerLiveActivity: Widget {
                                 Label(target, systemImage: "target")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(1)
+                                    .allowsTightening(true)
+                                    .minimumScaleFactor(0.8)
                             }
 
                             if let notes = context.attributes.notes {
@@ -78,6 +100,8 @@ struct RestTimerLiveActivity: Widget {
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)
                                     .lineLimit(2)  // Allow more lines
+                                    .allowsTightening(true)
+                                    .minimumScaleFactor(0.8)
                             }
                         }
                     }
