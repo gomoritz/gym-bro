@@ -18,7 +18,6 @@ struct ActiveSessionView: View {
     @State private var reps: String = ""
     @State private var duration: String = ""
     @State private var showEndSessionAlert = false
-    @State private var showTimerView = false
 
     var body: some View {
         ZStack {
@@ -54,7 +53,7 @@ struct ActiveSessionView: View {
         .navigationTitle("Active Workout")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .navigationDestination(isPresented: $showTimerView) {
+        .navigationDestination(isPresented: $sessionManager.isRestTimerActive) {
             RestTimerView(sessionManager: sessionManager)
         }
         .toolbar {
@@ -73,6 +72,9 @@ struct ActiveSessionView: View {
             }
         } message: {
             Text("Are you sure you want to end this workout session?")
+        }
+        .sheet(isPresented: $sessionManager.isChoosingNextExercise) {
+            NextExercisePickerView(sessionManager: sessionManager)
         }
         .onAppear {
             updateInputDefaults()
@@ -309,7 +311,6 @@ struct ActiveSessionView: View {
 
         // Start the timer and navigate to timer view
         sessionManager.startTimer()
-        showTimerView = true
     }
 
     private func finishExercise() {
@@ -334,10 +335,7 @@ struct ActiveSessionView: View {
 
         // Move to next exercise
         let success = sessionManager.nextExercise()
-        if success {
-            // Show transition timer
-            showTimerView = true
-        } else {
+        if !success {
             // No more exercises, show completion
             showEndSessionAlert = true
         }
@@ -384,6 +382,71 @@ struct ActiveSessionView: View {
             weight = ""
             reps = ""
         }
+    }
+}
+
+struct NextExercisePickerView: View {
+    var sessionManager: SessionManager
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(sessionManager.remainingExercisesInSplit) { exercise in
+                        Button {
+                            sessionManager.selectNextExercise(exercise)
+                            dismiss()
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(exercise.name)
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                if let target = getTargetString(for: exercise) {
+                                    Text(target)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                } header: {
+                    Text("Select your next exercise")
+                } footer: {
+                    Text("Choose which exercise you want to perform next.")
+                }
+            }
+            .navigationTitle("Next Exercise")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        sessionManager.isChoosingNextExercise = false
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func getTargetString(for exercise: Exercise) -> String? {
+        if exercise.hasTarget {
+            var parts: [String] = []
+            if let sets = exercise.targetSets {
+                parts.append("\(sets) sets")
+            }
+            if let min = exercise.minReps, let max = exercise.maxReps {
+                parts.append("\(min)-\(max) reps")
+            }
+            if let weight = exercise.targetWeight {
+                parts.append("@ \(Int(weight))kg")
+            }
+            return parts.joined(separator: " ")
+        }
+        return nil
     }
 }
 

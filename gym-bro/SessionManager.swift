@@ -23,6 +23,8 @@ class SessionManager: Identifiable, Hashable {
     var activeSession: WorkoutSession?
     var onTimerComplete: (() -> Void)?
     
+    var isChoosingNextExercise: Bool = false
+    
     private var modelContext: ModelContext?
     private var timer: Timer?
     
@@ -65,6 +67,21 @@ class SessionManager: Identifiable, Hashable {
     
     var isSessionActive: Bool {
         return activeSession != nil
+    }
+
+    var remainingExercisesInSplit: [Exercise] {
+        guard let split = currentSplit,
+              let exercises = split.exercises,
+              let session = activeSession else {
+            return []
+        }
+        
+        let completedExerciseIds = Set((session.sets ?? []).compactMap { $0.exercise?.id })
+        let currentExerciseId = currentExercise?.id
+        
+        return exercises.filter { exercise in
+            exercise.id != currentExerciseId && !completedExerciseIds.contains(exercise.id)
+        }
     }
     
     // MARK: - Session Management
@@ -162,18 +179,38 @@ class SessionManager: Identifiable, Hashable {
             toggleTimer()
         }
         
-        // Check if there's a next exercise
-        if currentExerciseIndex < exercises.count - 1 {
-            // Set transition state
-            transitionToExercise = exercises[currentExerciseIndex + 1]
-            
-            // Start the transition timer
-            startTimer()
-            
+        let remaining = remainingExercisesInSplit
+        
+        if remaining.count > 1 {
+            isChoosingNextExercise = true
+            return true
+        } else if let next = remaining.first {
+            selectNextExercise(next)
             return true
         }
         
         return false
+    }
+
+    func selectNextExercise(_ exercise: Exercise) {
+        guard let split = currentSplit,
+              let exercises = split.exercises,
+              let index = exercises.firstIndex(of: exercise) else {
+            return
+        }
+        
+        isChoosingNextExercise = false
+        currentExerciseIndex = index
+        
+        // Set transition state
+        // Note: we don't increment index anymore, we just set it to the selected one
+        // Wait, the current logic increments currentExerciseIndex in stopTimer() if transitionToExercise is set.
+        // Let's adjust that.
+        
+        transitionToExercise = exercise
+        
+        // Start the transition timer
+        startTimer()
     }
     
     func endSession() {
@@ -297,8 +334,10 @@ class SessionManager: Identifiable, Hashable {
         restTimeRemaining = restTimerDuration
         
         // Handle transition completion if applicable
-        if transitionToExercise != nil {
-            currentExerciseIndex += 1
+        if let transition = transitionToExercise,
+           let exercises = currentSplit?.exercises,
+           let index = exercises.firstIndex(of: transition) {
+            currentExerciseIndex = index
             transitionToExercise = nil
         }
         

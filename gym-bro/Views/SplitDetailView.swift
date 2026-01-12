@@ -36,10 +36,14 @@ struct SplitDetailView: View {
             }
         }
         .navigationTitle(split.name)
-        .navigationDestination(item: $sessionManager) { manager in
-            ActiveSessionView(sessionManager: manager)
+        .fullScreenCover(item: $sessionManager) { manager in
+            NavigationStack {
+                ActiveSessionView(sessionManager: manager)
+            }
         }
         .toolbar {
+            EditButton()
+            
             if let exercises = split.exercises, !exercises.isEmpty {
                 Button("Start Workout") {
                     let manager = SessionManager()

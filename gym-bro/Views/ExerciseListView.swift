@@ -19,7 +19,7 @@ struct ExerciseListView: View {
             List {
                 ForEach(exercises) { exercise in
                     NavigationLink {
-                        Text("Edit \(exercise.name)")
+                        ExerciseFormView(exercise: exercise)
                     } label: {
                         VStack(alignment: .leading) {
                             Text(exercise.name)
@@ -40,7 +40,9 @@ struct ExerciseListView: View {
                 }
             }
             .sheet(isPresented: $isPresentingAddSheet) {
-                AddExerciseSheet()
+                NavigationStack {
+                    ExerciseFormView()
+                }
             }
         }
     }
@@ -54,9 +56,11 @@ struct ExerciseListView: View {
     }
 }
 
-struct AddExerciseSheet: View {
+struct ExerciseFormView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
+
+    var exercise: Exercise?
 
     @State private var name = ""
     @State private var notes = ""
@@ -67,65 +71,94 @@ struct AddExerciseSheet: View {
     @State private var minReps = 8
     @State private var maxReps = 12
 
+    var isEditing: Bool {
+        exercise != nil
+    }
+
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Exercise name", text: $name)
-                    TextField("Notes", text: $notes, axis: .vertical)
-                        .lineLimit(2...)
-                    Toggle("Set target", isOn: $hasTarget)
-                }
+        Form {
+            Section {
+                TextField("Exercise name", text: $name)
+                TextField("Notes", text: $notes, axis: .vertical)
+                    .lineLimit(2...)
+                Toggle("Set target", isOn: $hasTarget)
+            }
 
-                if hasTarget {
-                    Section("Target") {
+            if hasTarget {
+                Section("Target") {
+                    Stepper(
+                        "**\(targetSets) sets**",
+                        value: $targetSets,
+                        in: 1...8
+                    )
+                    Stepper(
+                        "**\(minReps) reps** minimum",
+                        value: $minReps,
+                        in: 1...maxReps
+                    )
+                    Stepper(
+                        "**\(maxReps) reps** maximum",
+                        value: $maxReps,
+                        in: minReps...100
+                    )
+
+                    VStack {
                         Stepper(
-                            "**\(targetSets) sets**",
-                            value: $targetSets,
-                            in: 1...8
-                        )
-                        Stepper(
-                            "**\(minReps) reps** minimum",
-                            value: $minReps,
-                            in: 1...maxReps
-                        )
-                        Stepper(
-                            "**\(maxReps) reps** maximum",
-                            value: $maxReps,
-                            in: minReps...100
+                            "**\(String(format: "%.1f", targetWeight)) kg** weight",
+                            value: $targetWeight,
+                            in: 1.0...200.0,
+                            step: 0.5
                         )
 
-                        VStack {
-                            Stepper(
-                                "**\(String(format: "%.1f", targetWeight)) kg** weight",
-                                value: $targetWeight,
-                                in: 1.0...200.0,
-                                step: 0.5
-                            )
-
-                            Slider(value: $targetWeight, in: 1...200, step: 0.5)
-                        }
+                        Slider(value: $targetWeight, in: 1...200, step: 0.5)
                     }
                 }
             }
-            .navigationTitle("New Exercise")
-            .toolbar {
-                Button("Save") {
-                    let newExercise = Exercise(
-                        name: name,
-                        notes: !notes.trimming().isEmpty ? notes : nil,
-                        targetWeight: hasTarget ? targetWeight : nil,
-                        targetSets: hasTarget ? targetSets : nil,
-                        minReps: hasTarget ? minReps : nil,
-                        maxReps: hasTarget ? maxReps : nil
-                    )
-
-                    modelContext.insert(newExercise)
-                    dismiss()
-                }
-                .disabled(name.trimming().isEmpty)
+        }
+        .navigationTitle(isEditing ? "Edit Exercise" : "New Exercise")
+        .toolbar {
+            Button("Save") {
+                save()
+            }
+            .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        .onAppear {
+            if let exercise = exercise {
+                name = exercise.name
+                notes = exercise.notes ?? ""
+                hasTarget = exercise.hasTarget
+                targetWeight = exercise.targetWeight ?? 10.0
+                targetSets = exercise.targetSets ?? 4
+                minReps = exercise.minReps ?? 8
+                maxReps = exercise.maxReps ?? 12
             }
         }
+    }
+
+    private func save() {
+        if let exercise = exercise {
+            // Update existing
+            exercise.name = name
+            exercise.notes = !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil
+            exercise.targetWeight = hasTarget ? targetWeight : nil
+            exercise.targetSets = hasTarget ? targetSets : nil
+            exercise.minReps = hasTarget ? minReps : nil
+            exercise.maxReps = hasTarget ? maxReps : nil
+        } else {
+            // Create new
+            let newExercise = Exercise(
+                name: name,
+                notes: !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil,
+                targetWeight: hasTarget ? targetWeight : nil,
+                targetSets: hasTarget ? targetSets : nil,
+                minReps: hasTarget ? minReps : nil,
+                maxReps: hasTarget ? maxReps : nil
+            )
+            modelContext.insert(newExercise)
+        }
+        
+        try? modelContext.save()
+        dismiss()
     }
 }
 
