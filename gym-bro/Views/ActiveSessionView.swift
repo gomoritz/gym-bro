@@ -18,6 +18,7 @@ struct ActiveSessionView: View {
     @State private var reps: String = ""
     @State private var duration: String = ""
     @State private var showEndSessionAlert = false
+    @State private var showSkipConfirmation = false
 
     var body: some View {
         ZStack {
@@ -63,6 +64,12 @@ struct ActiveSessionView: View {
                 }
                 .foregroundStyle(.red)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: WorkoutTimelineView(sessionManager: sessionManager)) {
+                    Image(systemName: "list.bullet.rectangle")
+                        .foregroundStyle(.blue)
+                }
+            }
         }
         .alert("End Workout?", isPresented: $showEndSessionAlert) {
             Button("Cancel", role: .cancel) {}
@@ -72,6 +79,14 @@ struct ActiveSessionView: View {
             }
         } message: {
             Text("Are you sure you want to end this workout session?")
+        }
+        .alert(skipAlertTitle, isPresented: $showSkipConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Skip", role: .destructive) {
+                skipSets()
+            }
+        } message: {
+            Text(skipAlertMessage)
         }
         .sheet(isPresented: $sessionManager.isChoosingNextExercise) {
             NextExercisePickerView(sessionManager: sessionManager)
@@ -89,10 +104,28 @@ struct ActiveSessionView: View {
     private var exerciseHeader: some View {
         VStack(spacing: 8) {
             if let exercise = sessionManager.currentExercise {
-                Text(exercise.name)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 4) {
+                    Text(exercise.name)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .multilineTextAlignment(.center)
+
+                    // Exercise counter
+                    if let progressText = exerciseProgressText {
+                        Text(progressText)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Exercise notes
+                    if let notes = exercise.notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(notes)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 4)
+                    }
+                }
 
                 if exercise.hasTarget {
                     HStack(spacing: 16) {
@@ -219,9 +252,15 @@ struct ActiveSessionView: View {
                         finishSetButton(isPrimary: true)
                         finishExerciseButton(isPrimary: false)
                     }
+                    
+                    // Skip button
+                    skipButton
                 } else {
                     // Duration-based exercises: only show Finish Exercise
                     finishExerciseButton(isPrimary: true)
+                    
+                    // Skip button
+                    skipButton
                 }
             }
         }
@@ -270,8 +309,42 @@ struct ActiveSessionView: View {
             )
         }
     }
+    
+    private var skipButton: some View {
+        Button(action: {
+            showSkipConfirmation = true
+        }) {
+            Text(isFirstSet ? "Skip Exercise" : "Skip Remaining Sets")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.orange)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.orange.opacity(0.1))
+                )
+        }
+    }
 
     // MARK: - Computed Properties
+
+    private var exerciseProgressText: String? {
+        guard let split = sessionManager.currentSplit,
+              let exercises = split.exercises,
+              let session = sessionManager.activeSession else { return nil }
+        
+        // Count unique exercises with logged sets (excluding current)
+        let currentExerciseId = sessionManager.currentExercise?.id
+        let completedExerciseIds = Set((session.sets ?? [])
+            .compactMap { $0.exercise?.id }
+            .filter { $0 != currentExerciseId })
+        
+        let completedCount = completedExerciseIds.count
+        let currentNumber = completedCount + 1
+        
+        return "\(currentNumber)/\(exercises.count)"
+    }
 
     private var hasReachedTargetSets: Bool {
         guard let exercise = sessionManager.currentExercise,
@@ -280,6 +353,20 @@ struct ActiveSessionView: View {
             return false
         }
         return sessionManager.currentSetNumber >= targetSets
+    }
+    
+    private var isFirstSet: Bool {
+        sessionManager.currentSetNumber == 1
+    }
+    
+    private var skipAlertTitle: String {
+        isFirstSet ? "Skip Exercise?" : "Skip Remaining Sets?"
+    }
+    
+    private var skipAlertMessage: String {
+        isFirstSet
+            ? "Are you sure you want to skip this entire exercise? No sets will be logged."
+            : "Are you sure you want to skip the remaining sets of this exercise? Already logged sets will be kept."
     }
 
     // MARK: - Actions
@@ -334,6 +421,15 @@ struct ActiveSessionView: View {
         }
 
         // Move to next exercise
+        let success = sessionManager.nextExercise()
+        if !success {
+            // No more exercises, show completion
+            showEndSessionAlert = true
+        }
+    }
+    
+    private func skipSets() {
+        // Move to next exercise without logging anything
         let success = sessionManager.nextExercise()
         if !success {
             // No more exercises, show completion

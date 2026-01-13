@@ -70,6 +70,9 @@ struct ExerciseFormView: View {
     @State private var targetWeight = 10.0
     @State private var minReps = 8
     @State private var maxReps = 12
+    
+    @State private var hasRestTimerOverride = false
+    @State private var restTimerOverride: TimeInterval = 120
 
     var isEditing: Bool {
         exercise != nil
@@ -114,6 +117,32 @@ struct ExerciseFormView: View {
                     }
                 }
             }
+            
+            Section("Rest Timer") {
+                Toggle("Override default rest timer", isOn: $hasRestTimerOverride)
+                
+                if hasRestTimerOverride {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Slider(
+                                value: $restTimerOverride,
+                                in: 30...600,
+                                step: 15
+                            )
+                            
+                            Text("\(Int(restTimerOverride))s")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .frame(width: 50)
+                        }
+                        
+                        Text("Rest timer duration for this exercise")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
         }
         .navigationTitle(isEditing ? "Edit Exercise" : "New Exercise")
         .toolbar {
@@ -131,6 +160,11 @@ struct ExerciseFormView: View {
                 targetSets = exercise.targetSets ?? 4
                 minReps = exercise.minReps ?? 8
                 maxReps = exercise.maxReps ?? 12
+                
+                if let override = exercise.restTimerDurationOverride {
+                    hasRestTimerOverride = true
+                    restTimerOverride = override
+                }
             }
         }
     }
@@ -144,6 +178,7 @@ struct ExerciseFormView: View {
             exercise.targetSets = hasTarget ? targetSets : nil
             exercise.minReps = hasTarget ? minReps : nil
             exercise.maxReps = hasTarget ? maxReps : nil
+            exercise.restTimerDurationOverride = hasRestTimerOverride ? restTimerOverride : nil
         } else {
             // Create new
             let newExercise = Exercise(
@@ -152,7 +187,8 @@ struct ExerciseFormView: View {
                 targetWeight: hasTarget ? targetWeight : nil,
                 targetSets: hasTarget ? targetSets : nil,
                 minReps: hasTarget ? minReps : nil,
-                maxReps: hasTarget ? maxReps : nil
+                maxReps: hasTarget ? maxReps : nil,
+                restTimerDurationOverride: hasRestTimerOverride ? restTimerOverride : nil
             )
             modelContext.insert(newExercise)
         }

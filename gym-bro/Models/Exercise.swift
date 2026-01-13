@@ -19,6 +19,8 @@ class Exercise: Identifiable {
     var targetSets: Int?
     var minReps: Int?
     var maxReps: Int?
+    
+    var restTimerDurationOverride: TimeInterval?
 
     var splits: [Split]?
 
@@ -33,6 +35,7 @@ class Exercise: Identifiable {
         targetSets: Int? = nil,
         minReps: Int? = nil,
         maxReps: Int? = nil,
+        restTimerDurationOverride: TimeInterval? = nil
     ) {
         self.id = id
         self.name = name
@@ -41,6 +44,7 @@ class Exercise: Identifiable {
         self.targetSets = targetSets
         self.minReps = minReps
         self.maxReps = maxReps
+        self.restTimerDurationOverride = restTimerDurationOverride
     }
 
     var hasTargetWeight: Bool { targetWeight != nil }

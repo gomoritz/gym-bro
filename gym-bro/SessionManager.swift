@@ -151,6 +151,14 @@ class SessionManager: Identifiable, Hashable {
         }
         exercise.history?.append(workoutSet)
         
+        // Auto-update target weight if conditions are met
+        if let minReps = exercise.minReps,
+           let maxReps = exercise.maxReps,
+           let targetWeight = exercise.targetWeight,
+           reps >= minReps && reps <= maxReps && weight > targetWeight {
+            exercise.targetWeight = weight
+        }
+        
         // Save the context
         try? context.save()
     }
@@ -269,8 +277,24 @@ class SessionManager: Identifiable, Hashable {
             WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
         }
         
-        restTimeRemaining = restTimerDuration
-        timerEndTime = Date().addingTimeInterval(restTimerDuration)
+        // Determine timer duration based on context
+        let duration: TimeInterval
+        if let transition = transitionToExercise {
+            // Transition timer uses default transition duration
+            duration = Settings.shared.defaultTransitionTimerDuration
+        } else {
+            // Rest timer: check for exercise override first
+            if let exercise = currentExercise,
+               let override = exercise.restTimerDurationOverride {
+                duration = override
+            } else {
+                duration = Settings.shared.defaultRestTimerDuration
+            }
+        }
+        
+        restTimerDuration = duration
+        restTimeRemaining = duration
+        timerEndTime = Date().addingTimeInterval(duration)
         isRestTimerActive = true
         isTimerExpired = false
         
@@ -285,7 +309,7 @@ class SessionManager: Identifiable, Hashable {
                     nextExerciseName: transition.name,
                     target: target,
                     notes: notes,
-                    duration: restTimerDuration
+                    duration: duration
                 )
             }
         } else {
@@ -295,7 +319,7 @@ class SessionManager: Identifiable, Hashable {
                     WorkoutLiveActivityManager.shared.startRestTimer(
                         currentExerciseName: exercise.name,
                         currentSetNumber: currentSetNumber,
-                        duration: restTimerDuration
+                        duration: duration
                     )
                 }
             }
