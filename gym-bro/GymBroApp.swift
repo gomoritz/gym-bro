@@ -30,22 +30,25 @@ struct GymBroApp: App {
     }()
 
     @Environment(\.scenePhase) var scenePhase
+    @State private var sessionManager = SessionManager()
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(sessionManager)
+                .onAppear {
+                    // Request notification authorization early to ensure activities can show alerts
+                    Task { @MainActor in
+                        WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
+                    }
+                }
         }
         .modelContainer(sharedModelContainer)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                // Check if timer expired while in background
+                // User has returned to the app - acknowledge any expired timers
                 Task { @MainActor in
-                    RestTimerActivityManager.shared.checkExpiration()
-                    
-                    // Clear expired Live Activity when entering app
-                    if RestTimerActivityManager.shared.isExpired {
-                        RestTimerActivityManager.shared.endActivity()
-                    }
+                    sessionManager.acknowledgeTimerExpiry()
                 }
             }
         }

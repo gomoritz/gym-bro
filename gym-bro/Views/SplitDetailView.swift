@@ -10,11 +10,12 @@ import SwiftUI
 
 struct SplitDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(SessionManager.self) private var sessionManager
 
     @Bindable var split: Split
 
     @State private var isPresentingExercisePicker = false
-    @State private var sessionManager: SessionManager?
+    @State private var isWorkoutActive = false
 
     var body: some View {
         List {
@@ -36,9 +37,9 @@ struct SplitDetailView: View {
             }
         }
         .navigationTitle(split.name)
-        .fullScreenCover(item: $sessionManager) { manager in
+        .fullScreenCover(isPresented: $isWorkoutActive) {
             NavigationStack {
-                ActiveSessionView(sessionManager: manager)
+                ActiveSessionView(sessionManager: sessionManager)
             }
         }
         .toolbar {
@@ -46,9 +47,8 @@ struct SplitDetailView: View {
             
             if let exercises = split.exercises, !exercises.isEmpty {
                 Button("Start Workout") {
-                    let manager = SessionManager()
-                    manager.startSession(for: split, context: modelContext)
-                    sessionManager = manager
+                    sessionManager.startSession(for: split, context: modelContext)
+                    isWorkoutActive = true
                 }
             }
         }

@@ -28,19 +28,31 @@ struct RestTimerView: View {
                         .frame(width: 280, height: 280)
                     
                     // Progress circle
-                    Circle()
-                        .trim(from: 0, to: progress)
-                        .stroke(Color.white, style: StrokeStyle(lineWidth: 20, lineCap: .round))
-                        .frame(width: 280, height: 280)
-                        .rotationEffect(.degrees(-90))
-                        .animation(.linear(duration: 1), value: progress)
+                    if !sessionManager.isTimerExpired {
+                        Circle()
+                            .trim(from: 0, to: progress)
+                            .stroke(Color.white, style: StrokeStyle(lineWidth: 20, lineCap: .round))
+                            .frame(width: 280, height: 280)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.linear(duration: 1), value: progress)
+                    } else {
+                        Circle()
+                            .fill(Color.white.opacity(0.3))
+                            .frame(width: 280, height: 280)
+                    }
                     
                     // Timer text
                     VStack(spacing: 8) {
-                        Text(formatTime(sessionManager.restTimeRemaining))
-                            .font(.system(size: 72, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .monospacedDigit()
+                        if sessionManager.isTimerExpired {
+                            Text("TIME'S UP!")
+                                .font(.system(size: 48, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                        } else {
+                            Text(formatTime(sessionManager.restTimeRemaining))
+                                .font(.system(size: 72, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+                        }
                         
                         Text(sessionManager.transitionToExercise != nil ? "Next Up" : "Rest Timer")
                             .font(.title3)
@@ -59,7 +71,7 @@ struct RestTimerView: View {
                         
                         // Target/Notes
                         if let target = getTargetString(for: transitionExercise) {
-                                Text(target)
+                            Text(target)
                                 .font(.headline)
                                 .foregroundStyle(.white.opacity(0.9))
                         }
@@ -70,7 +82,7 @@ struct RestTimerView: View {
                                 .foregroundStyle(.white.opacity(0.8))
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
-                                .fixedSize(horizontal: false, vertical: true) // Allow unlimited height
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .padding(.horizontal)
@@ -79,28 +91,32 @@ struct RestTimerView: View {
                 Spacer()
                 
                 // Status text
-                if sessionManager.restTimeRemaining > 0 {
-                    Text(sessionManager.transitionToExercise != nil ? "Get Ready!" : "Rest in progress")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
+                if sessionManager.isTimerExpired {
+                    VStack(spacing: 12) {
+                        Text(sessionManager.transitionToExercise != nil ? "Ready to Go!" : "Time to Work!")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                        
+                        Text(sessionManager.transitionToExercise != nil ? "The transition is over" : "Rest period is complete")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
                 } else {
-                    Text(sessionManager.transitionToExercise != nil ? "Let's Go!" : "Rest complete!")
+                    Text(sessionManager.transitionToExercise != nil ? "Get Ready!" : "Rest in progress")
                         .font(.title2)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
                 }
                 
-                // Dismiss button
+                // Action button
                 Button(action: {
-                    // Always ensure timer is stopped/invalidated when manually continuing
-                    // If it was running, toggle stops it.
-                    // If it was finished (but state kept active for UI), toggle stops it.
                     sessionManager.toggleTimer()
                     dismiss()
                 }) {
                     Text(sessionManager.transitionToExercise != nil ? "Start Exercise" : "Continue Workout")
                         .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundStyle(timerColor)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -114,22 +130,6 @@ struct RestTimerView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
-        .onAppear {
-            // Set up auto-dismiss callback
-            sessionManager.onTimerComplete = { [weak sessionManager] in
-                // Wait 2 seconds to show "Rest complete!" state
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    // Check if view is still presented (simplest way is just to act)
-                    // We must STOP the timer state so it doesn't stay "active=true" with 0 time.
-                    sessionManager?.toggleTimer()
-                    dismiss()
-                }
-            }
-        }
-        .onDisappear {
-            // Clean up callback
-            sessionManager.onTimerComplete = nil
-        }
     }
     
     private var progress: CGFloat {

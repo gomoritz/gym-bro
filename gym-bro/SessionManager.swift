@@ -18,15 +18,16 @@ class SessionManager: Identifiable, Hashable {
     var currentExerciseIndex: Int = 0
     var transitionToExercise: Exercise?
     var isRestTimerActive: Bool = false
-    var restTimerDuration: TimeInterval = 20 // 2 minutes
+    var restTimerDuration: TimeInterval = 120 // Default 2 minutes
     var restTimeRemaining: TimeInterval = 120
     var activeSession: WorkoutSession?
-    var onTimerComplete: (() -> Void)?
+    var isTimerExpired: Bool = false
     
     var isChoosingNextExercise: Bool = false
     
     private var modelContext: ModelContext?
     private var timer: Timer?
+    private var timerEndTime: Date?
     
     // MARK: - Computed Properties
     
@@ -91,6 +92,7 @@ class SessionManager: Identifiable, Hashable {
         self.currentExerciseIndex = 0
         self.transitionToExercise = nil
         self.modelContext = context
+        self.isTimerExpired = false
         
         let session = WorkoutSession(
             startTime: Date.now,
@@ -99,6 +101,24 @@ class SessionManager: Identifiable, Hashable {
         
         context.insert(session)
         self.activeSession = session
+        
+        // Capture values before the Task to avoid race conditions
+        let exerciseName = currentExercise?.name
+        let setNum = currentSetNumber
+        
+        print("📋 Starting session with \(split.exercises?.count ?? 0) exercises")
+        
+        // Start the live activity for the workout
+        Task { @MainActor in
+            if let name = exerciseName {
+                WorkoutLiveActivityManager.shared.startWorkoutActivity(
+                    exerciseName: name,
+                    setNumber: setNum
+                )
+            } else {
+                print("⚠️  Warning: Could not start live activity - no current exercise")
+            }
+        }
     }
     
     func logSet(weight: Double, reps: Int) {
@@ -170,7 +190,7 @@ class SessionManager: Identifiable, Hashable {
     
     func nextExercise() -> Bool {
         guard let split = currentSplit,
-              let exercises = split.exercises else {
+              split.exercises != nil else {
             return false
         }
         
@@ -201,12 +221,6 @@ class SessionManager: Identifiable, Hashable {
         
         isChoosingNextExercise = false
         currentExerciseIndex = index
-        
-        // Set transition state
-        // Note: we don't increment index anymore, we just set it to the selected one
-        // Wait, the current logic increments currentExerciseIndex in stopTimer() if transitionToExercise is set.
-        // Let's adjust that.
-        
         transitionToExercise = exercise
         
         // Start the transition timer
@@ -227,18 +241,20 @@ class SessionManager: Identifiable, Hashable {
         currentSplit = nil
         currentExerciseIndex = 0
         transitionToExercise = nil
+        isTimerExpired = false
         
         if isRestTimerActive {
             toggleTimer()
+        }
+        
+        // End the live activity
+        Task { @MainActor in
+            WorkoutLiveActivityManager.shared.endWorkoutActivity()
         }
     }
     
     // MARK: - Timer Management
     
-    private var timerEndTime: Date?
-    
-    // ...
-
     func toggleTimer() {
         if isRestTimerActive {
             stopTimer()
@@ -250,43 +266,42 @@ class SessionManager: Identifiable, Hashable {
     func startTimer() {
         // Request notification permission if needed
         Task { @MainActor in
-            RestTimerActivityManager.shared.requestNotificationAuthorization()
+            WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
         }
         
         restTimeRemaining = restTimerDuration
         timerEndTime = Date().addingTimeInterval(restTimerDuration)
         isRestTimerActive = true
+        isTimerExpired = false
         
-        // Determine exercise name and details for Live Activity
-        let exerciseName: String
-        let isTransition: Bool
-        let target: String?
-        let notes: String?
-        
+        // Determine what type of timer this is
         if let transition = transitionToExercise {
-            exerciseName = transition.name
-            isTransition = true
-            target = getTargetString(for: transition)
-            notes = transition.notes
+            // Transition timer
+            let target = getTargetString(for: transition)
+            let notes = transition.notes
+            
+            Task { @MainActor in
+                WorkoutLiveActivityManager.shared.startTransitionTimer(
+                    nextExerciseName: transition.name,
+                    target: target,
+                    notes: notes,
+                    duration: restTimerDuration
+                )
+            }
         } else {
-            exerciseName = currentExercise?.name ?? "Rest"
-            isTransition = false
-            target = nil
-            notes = nil
+            // Rest timer
+            if let exercise = currentExercise {
+                Task { @MainActor in
+                    WorkoutLiveActivityManager.shared.startRestTimer(
+                        currentExerciseName: exercise.name,
+                        currentSetNumber: currentSetNumber,
+                        duration: restTimerDuration
+                    )
+                }
+            }
         }
         
-        // Start Live Activity
-        Task { @MainActor in
-            RestTimerActivityManager.shared.startActivity(
-                exerciseName: exerciseName,
-                duration: restTimerDuration,
-                isTransition: isTransition,
-                target: target,
-                notes: notes
-            )
-        }
-        
-        // Timer fires every 0.1s for smoother UI updates, though UI might throttle
+        // Timer fires every 0.1s for smoother UI updates
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self, let endTime = self.timerEndTime else { return }
             
@@ -294,34 +309,31 @@ class SessionManager: Identifiable, Hashable {
             
             if remaining > 0 {
                 self.restTimeRemaining = remaining
-                // We don't need to update Live Activity repeatedly for countdown 
-                // because we'll use Text(timerInterval:)
             } else {
                 // Timer finished
-                
-                // 1. Trigger Vibration (Foreground)
-                AudioServicesPlayAlertSound(SystemSoundID(kSystemSoundID_Vibrate))
-                
-                // 2. Update local state
                 self.timer?.invalidate()
                 self.timer = nil
                 self.restTimeRemaining = 0
-                // NOTE: We do NOT set isRestTimerActive = false yet, so that the UI can show "Rest Complete" 
-                // and the "Continue" button (which calls toggleTimer) can correctly STOP it (by seeing it matches active).
+                self.isTimerExpired = true
                 
-                // 3. Update Live Activity to show expired state (triggers alert in background if allowed)
+                // Trigger Vibration
+                AudioServicesPlayAlertSound(SystemSoundID(kSystemSoundID_Vibrate))
+                
+                // Update Live Activity to show expired state
                 Task { @MainActor in
-                    RestTimerActivityManager.shared.updateActivity(
-                        remainingSeconds: 0
-                    )
-                    
-                    // If in foreground, cancel the notification so it doesn't double-trigger
-                    if UIApplication.shared.applicationState == .active {
-                        RestTimerActivityManager.shared.cancelNotification()
+                    if let transition = self.transitionToExercise {
+                        WorkoutLiveActivityManager.shared.setTransitionTimerExpired(
+                            nextExerciseName: transition.name,
+                            target: self.getTargetString(for: transition),
+                            notes: transition.notes
+                        )
+                    } else if let exercise = self.currentExercise {
+                        WorkoutLiveActivityManager.shared.setRestTimerExpired(
+                            currentExerciseName: exercise.name,
+                            currentSetNumber: self.currentSetNumber
+                        )
                     }
                 }
-                
-                self.onTimerComplete?()
             }
         }
     }
@@ -331,19 +343,36 @@ class SessionManager: Identifiable, Hashable {
         timer = nil
         timerEndTime = nil
         isRestTimerActive = false
+        isTimerExpired = false
         restTimeRemaining = restTimerDuration
         
-        // Handle transition completion if applicable
-        if let transition = transitionToExercise,
-           let exercises = currentSplit?.exercises,
-           let index = exercises.firstIndex(of: transition) {
-            currentExerciseIndex = index
+        // Clear transition if applicable
+        if transitionToExercise != nil {
             transitionToExercise = nil
         }
         
-        // End Live Activity manually
-        Task { @MainActor in
-            RestTimerActivityManager.shared.endActivity()
+        // Update live activity to show idle state
+        if let exercise = currentExercise {
+            Task { @MainActor in
+                WorkoutLiveActivityManager.shared.updateToIdle(
+                    exerciseName: exercise.name,
+                    setNumber: currentSetNumber
+                )
+            }
+        }
+    }
+    
+    func acknowledgeTimerExpiry() {
+        if isTimerExpired {
+            if let exercise = currentExercise {
+                Task { @MainActor in
+                    WorkoutLiveActivityManager.shared.acknowledgeExpiredTimer(
+                        exerciseName: exercise.name,
+                        setNumber: currentSetNumber
+                    )
+                }
+            }
+            isTimerExpired = false
         }
     }
     

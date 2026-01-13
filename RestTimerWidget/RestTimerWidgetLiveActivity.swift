@@ -17,150 +17,352 @@ struct RestTimerLiveActivity: Widget {
             LockScreenRestTimerView(context: context)
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded UI - Full timer display
+                // Expanded view
                 DynamicIslandExpandedRegion(.leading) {
-                    Image(
-                        systemName: context.state.isExpired
-                            ? "exclamationmark.circle.fill"
-                            : (context.attributes.isTransition
-                                ? "arrow.right.circle.fill" : "timer")
-                    )
-                    .font(.title2)
-                    .foregroundStyle(timerColor(for: context))
-                    .padding(.leading, 4)
+                    expandedLeading(context: context)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    if context.state.isExpired {
-                        Text("Time!")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .monospacedDigit()
-                            .foregroundStyle(.red)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .padding(.trailing, 4)
-                    } else {
-                        Text(timerInterval: Date.now...context.state.endTime)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .monospacedDigit()
-                            .foregroundStyle(timerColor(for: context))
-                            .multilineTextAlignment(.trailing)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .padding(.trailing, 4)
-                    }
+                    expandedTrailing(context: context)
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    VStack(alignment: .center) {  // Centered alignment
-                        Text(
-                            context.state.isExpired
-                                ? (context.attributes.isTransition
-                                    ? "Let's Go!" : "Rest Over!")
-                                : (context.attributes.isTransition
-                                    ? "Next Up" : "Rest Timer")
-                        )
-                        .font(.caption)
-                        .foregroundStyle(
-                            context.state.isExpired ? .primary : .secondary
-                        )
-                        .multilineTextAlignment(.center)
-                        .lineLimit(1)
-                        .allowsTightening(true)
-                        .minimumScaleFactor(0.8)
-
-                        Text(context.attributes.exerciseName)
-                            .font(.headline)
-                            .lineLimit(1)
-                            .multilineTextAlignment(.center)
-                            .allowsTightening(true)
-                            .minimumScaleFactor(0.8)
-                    }
+                    expandedCenter(context: context)
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    // Details (Target / Notes)
-                    if context.attributes.isTransition {
-                        VStack(spacing: 4) {  // Changed to VStack for more space
-                            if let target = context.attributes.target {
-                                Label(target, systemImage: "target")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(1)
-                                    .allowsTightening(true)
-                                    .minimumScaleFactor(0.8)
-                            }
-
-                            if let notes = context.attributes.notes {
-                                Label(notes, systemImage: "note.text")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)  // Allow more lines
-                                    .allowsTightening(true)
-                                    .minimumScaleFactor(0.8)
-                            }
-                        }
-                    }
+                    expandedBottom(context: context)
                 }
             } compactLeading: {
-                HStack(alignment: .center, spacing: 6) {
-                    Image(
-                        systemName: context.state.isExpired
-                            ? "exclamationmark.circle.fill"
-                            : (context.attributes.isTransition
-                                ? "arrow.right.circle.fill" : "timer")
-                    )
-                    .foregroundStyle(timerColor(for: context))
-
-                    if context.state.isExpired {
-                        Text("Time!")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .monospacedDigit()
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.leading)
-                    } else {
-                        Text(timerInterval: Date.now...context.state.endTime)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .monospacedDigit()
-                            .foregroundStyle(timerColor(for: context))
-                            .multilineTextAlignment(.leading)
-                    }
-
-                    Spacer()
-                }
+                compactLeading(context: context)
             } compactTrailing: {
-                Text(context.attributes.exerciseName)
-                    .font(.headline)
-                    .lineLimit(1)
-                    .allowsTightening(true)
-                    .minimumScaleFactor(0.5)
-                    .padding(.trailing, 6)
+                compactTrailing(context: context)
             } minimal: {
-                Image(
-                    systemName: context.state.isExpired
-                        ? "exclamationmark.circle.fill"
-                        : (context.attributes.isTransition
-                            ? "arrow.right.circle.fill" : "timer")
-                )
-                .foregroundStyle(timerColor(for: context))
+                minimalView(context: context)
             }
-            .keylineTint(timerColor(for: context))
+            .keylineTint(stateColor(for: context))
         }
     }
 
-    func timerColor(
+    // MARK: - Expanded Leading
+
+    @ViewBuilder
+    private func expandedLeading(
+        context: ActivityViewContext<RestTimerActivityAttributes>
+    ) -> some View {
+        switch context.state.timerState {
+        case .idle:
+            Image(systemName: "dumbbell.fill")
+                .font(.title2)
+                .foregroundStyle(stateColor(for: context))
+                .padding(.leading, 4)
+
+        case .restTimerRunning, .restTimerExpired:
+            Image(systemName: "timer")
+                .font(.title2)
+                .foregroundStyle(stateColor(for: context))
+                .padding(.leading, 4)
+
+        case .transitionTimerRunning, .transitionTimerExpired:
+            Image(systemName: "arrow.right.circle.fill")
+                .font(.title2)
+                .foregroundStyle(stateColor(for: context))
+                .padding(.leading, 4)
+        }
+    }
+
+    // MARK: - Expanded Trailing
+
+    @ViewBuilder
+    private func expandedTrailing(
+        context: ActivityViewContext<RestTimerActivityAttributes>
+    ) -> some View {
+        VStack(alignment: .trailing) {
+            switch context.state.timerState {
+            case .idle:
+                Text("Continue")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.green)
+                    .lineLimit(1)
+                    .allowsTightening(true)
+                    .multilineTextAlignment(.trailing)
+                    .minimumScaleFactor(0.5)
+
+            case .restTimerRunning, .transitionTimerRunning:
+                if let endTime = context.state.endTime {
+                    Text(timerInterval: Date.now...endTime)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .monospacedDigit()
+                        .foregroundStyle(stateColor(for: context))
+                        .lineLimit(1)
+                        .allowsTightening(true)
+                        .multilineTextAlignment(.trailing)
+                        .minimumScaleFactor(0.5)
+                }
+
+            case .restTimerExpired, .transitionTimerExpired:
+                Text("Time's up!")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                    .foregroundStyle(.red)
+                    .lineLimit(1)
+                    .allowsTightening(true)
+                    .multilineTextAlignment(.trailing)
+                    .minimumScaleFactor(0.5)
+            }
+        }
+        .padding(.trailing, 4)
+    }
+
+    // MARK: - Expanded Center
+
+    @ViewBuilder
+    private func expandedCenter(
+        context: ActivityViewContext<RestTimerActivityAttributes>
+    ) -> some View {
+        VStack(alignment: .center, spacing: 4) {
+            // Status label
+            switch context.state.timerState {
+            case .idle:
+                Text("Ready")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+            case .restTimerRunning:
+                Text("Rest")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+            case .transitionTimerRunning:
+                Text("Transition")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+            case .restTimerExpired:
+                Text("Rest complete")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.red)
+
+            case .transitionTimerExpired:
+                Text("Ready to go")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.red)
+            }
+
+            // Exercise name
+            Text(exerciseDisplayName(context: context))
+                .font(.headline)
+                .lineLimit(1)
+                .allowsTightening(true)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    // MARK: - Expanded Bottom
+
+    @ViewBuilder
+    private func expandedBottom(
+        context: ActivityViewContext<RestTimerActivityAttributes>
+    ) -> some View {
+        switch context.state.timerState {
+        case .idle:
+            if let setNumber = context.state.currentSetNumber {
+                Text("Set \(setNumber)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 1)
+            }
+
+        case .restTimerRunning:
+            if let setNumber = context.state.currentSetNumber {
+                Text("Set \(setNumber)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 1)
+            }
+
+        case .transitionTimerRunning, .transitionTimerExpired:
+            VStack(spacing: 2) {
+                if let target = context.state.nextExerciseTarget {
+                    Label(target, systemImage: "target")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .allowsTightening(true)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+
+                if let notes = context.state.nextExerciseNotes {
+                    Label(notes, systemImage: "note.text")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .allowsTightening(true)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                }
+            }
+            .padding(.top, 2)
+
+        case .restTimerExpired:
+            if let setNumber = context.state.currentSetNumber {
+                Text("Set \(setNumber) complete")
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .padding(.top, 1)
+            }
+        }
+    }
+
+    // MARK: - Compact Leading
+
+    @ViewBuilder
+    private func compactLeading(
+        context: ActivityViewContext<RestTimerActivityAttributes>
+    ) -> some View {
+        HStack(alignment: .center, spacing: 6) {
+            switch context.state.timerState {
+            case .idle:
+                Image(systemName: "dumbbell.fill")
+                    .foregroundStyle(.green)
+
+                Text("Ready")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.green)
+
+            case .restTimerRunning, .transitionTimerRunning:
+                Image(
+                    systemName: context.state.timerState == .restTimerRunning
+                        ? "timer" : "arrow.right.circle.fill"
+                )
+                .foregroundStyle(stateColor(for: context))
+
+                if let endTime = context.state.endTime {
+                    Text(timerInterval: Date.now...endTime)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                        .foregroundStyle(stateColor(for: context))
+                }
+
+            case .restTimerExpired, .transitionTimerExpired:
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundStyle(.red)
+
+                Text("Over")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.red)
+                    .allowsTightening(true)
+                    .minimumScaleFactor(0.75)
+            }
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Compact Trailing
+
+    @ViewBuilder
+    private func compactTrailing(
+        context: ActivityViewContext<RestTimerActivityAttributes>
+    ) -> some View {
+        HStack(spacing: 4) {
+            switch context.state.timerState {
+            case .idle, .restTimerRunning, .restTimerExpired:
+                Text(context.state.exerciseName)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+
+            case .transitionTimerRunning, .transitionTimerExpired:
+                if let nextExercise = context.state.nextExerciseName {
+                    Text(nextExercise)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .allowsTightening(true)
+                        .minimumScaleFactor(0.5)
+                } else {
+                    Text("Next Exercise")
+                        .font(.headline)
+                        .lineLimit(1)
+                        .allowsTightening(true)
+                        .minimumScaleFactor(0.5)
+                }
+            }
+        }
+        .padding(.trailing, 6)
+    }
+
+    // MARK: - Minimal
+
+    @ViewBuilder
+    private func minimalView(
+        context: ActivityViewContext<RestTimerActivityAttributes>
+    ) -> some View {
+        switch context.state.timerState {
+        case .idle:
+            Image(systemName: "dumbbell.fill")
+                .foregroundStyle(.green)
+
+        case .restTimerRunning, .transitionTimerRunning:
+            if let endTime = context.state.endTime {
+                Text(timerInterval: Date.now...endTime)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                    .foregroundStyle(stateColor(for: context))
+                    .allowsTightening(true)
+                    .minimumScaleFactor(0.5)
+            } else {
+                Image(systemName: "timer")
+                    .foregroundStyle(.green)
+            }
+
+        case .restTimerExpired, .transitionTimerExpired:
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    private func stateColor(
         for context: ActivityViewContext<RestTimerActivityAttributes>
     ) -> Color {
-        if context.state.isExpired {
+        switch context.state.timerState {
+        case .idle:
+            return .green
+
+        case .restTimerRunning:
+            return .green
+
+        case .transitionTimerRunning:
+            return .blue
+
+        case .restTimerExpired, .transitionTimerExpired:
             return .red
         }
-        return context.attributes.isTransition ? .blue : .green
+    }
+
+    private func exerciseDisplayName(
+        context: ActivityViewContext<RestTimerActivityAttributes>
+    ) -> String {
+        switch context.state.timerState {
+        case .idle, .restTimerRunning, .restTimerExpired:
+            return context.state.exerciseName
+
+        case .transitionTimerRunning, .transitionTimerExpired:
+            return context.state.nextExerciseName ?? "Next Exercise"
+        }
     }
 }
 
@@ -171,113 +373,156 @@ struct LockScreenRestTimerView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Circular progress indicator
+            // Circular progress/status indicator
             ZStack {
                 Circle()
                     .stroke(Color.white.opacity(0.2), lineWidth: 4)
                     .frame(width: 50, height: 50)
 
-                // Note: Smoother rotation in lock screen is hard without timerInterval
-                // We fallback to a static "snapshot" of progress or use a full View that supports it.
-                // For now, keep as is.
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        timerColor,
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 50, height: 50)
-                    .rotationEffect(.degrees(-90))
-
-                Image(
-                    systemName: context.state.isExpired
-                        ? "exclamationmark"
-                        : (context.attributes.isTransition
-                            ? "arrow.right" : "timer")
-                )
-                .foregroundStyle(timerColor)
+                Image(systemName: iconName)
+                    .foregroundStyle(timerColor)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(
-                        context.state.isExpired
-                            ? (context.attributes.isTransition
-                                ? "Let's Go!" : "Rest Over!")
-                            : (context.attributes.isTransition
-                                ? "Next Up" : "Rest Timer")
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // Status and exercise
+                HStack(spacing: 4) {
+                    Text(statusLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-                    if context.attributes.isTransition {
+                    if context.state.timerState != .idle {
                         Text("•")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(context.attributes.exerciseName)
+
+                        Text(exerciseDisplayName)
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundStyle(.primary)
                     }
                 }
 
-                if context.state.isExpired {
-                    Text("0:00")
+                // Timer display
+                if context.state.timerState == .restTimerRunning
+                    || context.state.timerState == .transitionTimerRunning
+                {
+                    if let endTime = context.state.endTime {
+                        Text(timerInterval: Date.now...endTime)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .monospacedDigit()
+                            .foregroundStyle(timerColor)
+                    }
+                } else if context.state.timerState == .restTimerExpired
+                    || context.state.timerState == .transitionTimerExpired
+                {
+                    Text("Time's up!")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .monospacedDigit()
                         .foregroundStyle(.red)
                 } else {
-                    Text(timerInterval: Date.now...context.state.endTime)
+                    Text(exerciseDisplayName)
                         .font(.title2)
                         .fontWeight(.bold)
-                        .monospacedDigit()
-                        .foregroundStyle(timerColor)
+                        .foregroundStyle(.primary)
                 }
 
-                if context.attributes.isTransition {
-                    VStack(alignment: .leading, spacing: 2) {  // Changed to VStack for vertical stacking
-                        if let target = context.attributes.target {
+                // Details
+                if context.state.timerState == .transitionTimerRunning
+                    || context.state.timerState == .transitionTimerExpired
+                {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let target = context.state.nextExerciseTarget {
                             Text(target)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                        if let notes = context.attributes.notes {
+                        if let notes = context.state.nextExerciseNotes {
                             Text(notes)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                                .lineLimit(2)  // Increase line limit
+                                .lineLimit(2)
                         }
                     }
-                } else {
-                    Text(context.attributes.exerciseName)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
             }
 
             Spacer()
         }
         .padding()
-        .background(Color.black)  // Solid black background
-        .activityBackgroundTint(nil)  // Remove tint to allow solid background
+        .background(Color.black.opacity(0.10).blur(radius: 5.0))
+        .activityBackgroundTint(nil)
         .activitySystemActionForegroundColor(.white)
     }
 
+    // MARK: - Lock Screen Helpers
+
+    private var isTimerRunning: Bool {
+        context.state.timerState == .restTimerRunning
+            || context.state.timerState == .transitionTimerRunning
+    }
+
     private var progress: CGFloat {
-        context.state.isExpired
-            ? 1.0
-            : CGFloat(
-                context.state.remainingSeconds / context.attributes.restDuration
-            )
+        guard isTimerRunning,
+            let endTime = context.state.endTime,
+            let duration = context.state.restDuration,
+            duration > 0
+        else {
+            return 0
+        }
+
+        let remaining = endTime.timeIntervalSinceNow
+        return max(0, min(1, CGFloat(remaining / duration)))
     }
 
     private var timerColor: Color {
-        if context.state.isExpired {
+        switch context.state.timerState {
+        case .idle:
+            return .green
+        case .restTimerRunning:
+            return .green
+        case .transitionTimerRunning:
+            return .cyan
+        case .restTimerExpired, .transitionTimerExpired:
             return .red
         }
-        return context.attributes.isTransition ? .cyan : .green  // Use cyan for better visibility
+    }
+
+    private var iconName: String {
+        switch context.state.timerState {
+        case .idle:
+            return "dumbbell.fill"
+        case .restTimerRunning:
+            return "timer"
+        case .transitionTimerRunning:
+            return "arrow.right"
+        case .restTimerExpired, .transitionTimerExpired:
+            return "exclamationmark"
+        }
+    }
+
+    private var statusLabel: String {
+        switch context.state.timerState {
+        case .idle:
+            return "Ready"
+        case .restTimerRunning:
+            return "Rest"
+        case .transitionTimerRunning:
+            return "Transition"
+        case .restTimerExpired:
+            return "Rest Over!"
+        case .transitionTimerExpired:
+            return "Let's Go!"
+        }
+    }
+
+    private var exerciseDisplayName: String {
+        switch context.state.timerState {
+        case .idle, .restTimerRunning, .restTimerExpired:
+            return context.state.exerciseName
+        case .transitionTimerRunning, .transitionTimerExpired:
+            return context.state.nextExerciseName ?? "Next Exercise"
+        }
     }
 }
 
@@ -285,39 +530,112 @@ struct LockScreenRestTimerView: View {
 
 extension RestTimerActivityAttributes {
     fileprivate static var preview: RestTimerActivityAttributes {
-        RestTimerActivityAttributes(
-            exerciseName: "Bench Press",
-            restDuration: 120,
-            isTransition: false
-        )
+        RestTimerActivityAttributes()
     }
 }
 
 extension RestTimerActivityAttributes.ContentState {
-    fileprivate static var active: RestTimerActivityAttributes.ContentState {
+    fileprivate static var idle: RestTimerActivityAttributes.ContentState {
         RestTimerActivityAttributes.ContentState(
-            endTime: Date().addingTimeInterval(90),
-            remainingSeconds: 90,
-            isExpired: false
+            timerState: .idle,
+            exerciseName: "Bench Press",
+            currentSetNumber: 1
         )
     }
 
-    fileprivate static var complete: RestTimerActivityAttributes.ContentState {
+    fileprivate static var restRunning: RestTimerActivityAttributes.ContentState
+    {
         RestTimerActivityAttributes.ContentState(
-            endTime: Date(),
-            remainingSeconds: 0,
-            isExpired: true
+            timerState: .restTimerRunning,
+            exerciseName: "Bench Press",
+            currentSetNumber: 1,
+            endTime: Date().addingTimeInterval(90),
+            restDuration: 120
+        )
+    }
+
+    fileprivate static var transitionRunning:
+        RestTimerActivityAttributes.ContentState
+    {
+        RestTimerActivityAttributes.ContentState(
+            timerState: .transitionTimerRunning,
+            exerciseName: "Transition",
+            endTime: Date().addingTimeInterval(60),
+            restDuration: 120,
+            nextExerciseName: "Squats",
+            nextExerciseTarget: "4 sets × 8-10 reps @ 100kg",
+            nextExerciseNotes: "Keep form tight"
+        )
+    }
+
+    fileprivate static var restExpired: RestTimerActivityAttributes.ContentState
+    {
+        RestTimerActivityAttributes.ContentState(
+            timerState: .restTimerExpired,
+            exerciseName: "Bench Press",
+            currentSetNumber: 1
+        )
+    }
+
+    fileprivate static var transitionExpired:
+        RestTimerActivityAttributes.ContentState
+    {
+        RestTimerActivityAttributes.ContentState(
+            timerState: .transitionTimerExpired,
+            exerciseName: "Transition",
+            nextExerciseName: "Squats",
+            nextExerciseTarget: "4 sets × 8-10 reps @ 100kg",
+            nextExerciseNotes: "Keep form tight"
         )
     }
 }
 
 #Preview(
-    "Notification",
+    "Idle State",
     as: .content,
     using: RestTimerActivityAttributes.preview
 ) {
     RestTimerLiveActivity()
 } contentStates: {
-    RestTimerActivityAttributes.ContentState.active
-    RestTimerActivityAttributes.ContentState.complete
+    RestTimerActivityAttributes.ContentState.idle
+}
+
+#Preview(
+    "Rest Timer Running",
+    as: .content,
+    using: RestTimerActivityAttributes.preview
+) {
+    RestTimerLiveActivity()
+} contentStates: {
+    RestTimerActivityAttributes.ContentState.restRunning
+}
+
+#Preview(
+    "Rest Timer Expired",
+    as: .content,
+    using: RestTimerActivityAttributes.preview
+) {
+    RestTimerLiveActivity()
+} contentStates: {
+    RestTimerActivityAttributes.ContentState.restExpired
+}
+
+#Preview(
+    "Transition Timer Running",
+    as: .content,
+    using: RestTimerActivityAttributes.preview
+) {
+    RestTimerLiveActivity()
+} contentStates: {
+    RestTimerActivityAttributes.ContentState.transitionRunning
+}
+
+#Preview(
+    "Transition Timer Expired",
+    as: .content,
+    using: RestTimerActivityAttributes.preview
+) {
+    RestTimerLiveActivity()
+} contentStates: {
+    RestTimerActivityAttributes.ContentState.transitionExpired
 }
