@@ -140,7 +140,7 @@ struct RestTimerView: View {
         if sessionManager.restTimeRemaining <= 0 {
             return .red
         }
-        return sessionManager.transitionToExercise != nil ? .blue : .green
+        return sessionManager.transitionToExercise != nil ? .blue : .orange
     }
     
     private func formatTime(_ seconds: TimeInterval) -> String {

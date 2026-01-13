@@ -324,7 +324,7 @@ struct RestTimerLiveActivity: Widget {
                     .minimumScaleFactor(0.5)
             } else {
                 Image(systemName: "timer")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(stateColor(for: context))
             }
 
         case .restTimerExpired, .transitionTimerExpired:
@@ -343,7 +343,7 @@ struct RestTimerLiveActivity: Widget {
             return .green
 
         case .restTimerRunning:
-            return .green
+            return .orange
 
         case .transitionTimerRunning:
             return .blue
@@ -480,7 +480,7 @@ struct LockScreenRestTimerView: View {
         case .idle:
             return .green
         case .restTimerRunning:
-            return .green
+            return .orange
         case .transitionTimerRunning:
             return .cyan
         case .restTimerExpired, .transitionTimerExpired:
