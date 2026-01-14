@@ -114,6 +114,16 @@ struct WorkoutTimelineView: View {
                     .foregroundStyle(.orange)
             }
 
+            // Show already logged sets for current exercise
+            if let sets = getSetsForExercise(exercise) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(sets, id: \.id) { workoutSet in
+                        setRowView(workoutSet, exercise: exercise)
+                    }
+                }
+                .padding(.leading, 32)
+            }
+
             HStack {
                 Label {
                     Text("Set \(sessionManager.currentSetNumber)\(exercise.targetSets.map { " of \($0)" } ?? "")")
@@ -124,13 +134,13 @@ struct WorkoutTimelineView: View {
                 
                 Spacer()
                 
-                if let targetWeight = exercise.targetWeight,
-                   let minReps = exercise.minReps,
-                   let maxReps = exercise.maxReps {
-                    Text("\(Int(targetWeight))kg × \(minReps)-\(maxReps)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            if let targetWeight = exercise.targetWeight,
+               let minReps = exercise.minReps,
+               let maxReps = exercise.maxReps {
+                Text("\(String(format: "%.1f", targetWeight))kg × \(minReps)-\(maxReps)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
             }
             .padding(.leading, 32)
         }
@@ -155,7 +165,7 @@ struct WorkoutTimelineView: View {
                     if let targetWeight = exercise.targetWeight,
                        let minReps = exercise.minReps,
                        let maxReps = exercise.maxReps {
-                        Text("\(Int(targetWeight))kg × \(minReps)-\(maxReps)")
+                        Text("\(String(format: "%.1f", targetWeight))kg × \(minReps)-\(maxReps)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -188,7 +198,7 @@ struct WorkoutTimelineView: View {
                 .foregroundStyle(.secondary)
 
             if let weight = workoutSet.weight, let reps = workoutSet.reps {
-                Text("\(Int(weight))kg × \(reps)")
+                Text("\(String(format: "%.1f", weight))kg × \(reps)")
                     .font(.caption)
                     .fontWeight(.semibold)
             } else if let duration = workoutSet.duration {
@@ -219,11 +229,12 @@ struct WorkoutTimelineView: View {
         let completedIds = Set(sets.compactMap { $0.exercise?.id }.filter { $0 != currentExerciseId })
         let completedExercises = exercises.filter { completedIds.contains($0.id) }
         
-        // Return in order of first appearance in sets
+        // Return in order of first appearance in sets (sorted by time)
+        let sortedSets = sets.sorted { $0.startTime < $1.startTime }
         var seenIds = Set<UUID>()
         var orderedExercises: [Exercise] = []
         
-        for set in sets {
+        for set in sortedSets {
             if let exerciseId = set.exercise?.id, 
                exerciseId != currentExerciseId,
                !seenIds.contains(exerciseId) {
@@ -244,6 +255,7 @@ struct WorkoutTimelineView: View {
         }
 
         let exerciseSets = sets.filter { $0.exercise?.id == exercise.id }
+            .sorted { $0.startTime < $1.startTime }
         return exerciseSets.isEmpty ? nil : exerciseSets
     }
 

@@ -86,6 +86,28 @@ struct RestTimerView: View {
                         }
                     }
                     .padding(.horizontal)
+                } else if let exercise = sessionManager.currentExercise {
+                    // Show set info for rest timer (not transition)
+                    VStack(spacing: 8) {
+                        Text(exercise.name)
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        if let targetSets = exercise.targetSets {
+                            Text("Next set \(sessionManager.currentSetNumber)/\(targetSets)")
+                                .font(.headline)
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        
+                        if let target = getTargetString(for: exercise) {
+                            Text(target)
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                    }
+                    .padding(.horizontal)
                 }
                 
                 Spacer()
@@ -130,6 +152,14 @@ struct RestTimerView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: WorkoutTimelineView(sessionManager: sessionManager)) {
+                    Image(systemName: "list.bullet.rectangle")
+                        .foregroundStyle(.white)
+                }
+            }
+        }
     }
     
     private var progress: CGFloat {
@@ -159,7 +189,7 @@ struct RestTimerView: View {
                 parts.append("\(min)-\(max) reps")
             }
             if let weight = exercise.targetWeight {
-                parts.append("@ \(Int(weight))kg")
+                parts.append("@ \(String(format: "%.1f", weight))kg")
             }
             return parts.joined(separator: " ")
         }

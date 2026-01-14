@@ -19,6 +19,9 @@ struct ActiveSessionView: View {
     @State private var duration: String = ""
     @State private var showEndSessionAlert = false
     @State private var showSkipConfirmation = false
+    
+    @FocusState private var focusedField: Field?
+    enum Field { case weight, reps, duration }
 
     var body: some View {
         ZStack {
@@ -49,6 +52,7 @@ struct ActiveSessionView: View {
                     }
                     .padding(.vertical, 20)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
         }
         .navigationTitle("Active Workout")
@@ -90,6 +94,9 @@ struct ActiveSessionView: View {
         }
         .sheet(isPresented: $sessionManager.isChoosingNextExercise) {
             NextExercisePickerView(sessionManager: sessionManager)
+        }
+        .sheet(isPresented: $sessionManager.isChoosingStartingExercise) {
+            NextExercisePickerView(sessionManager: sessionManager, isStartingExercise: true)
         }
         .onAppear {
             updateInputDefaults()
@@ -151,16 +158,16 @@ struct ActiveSessionView: View {
                         Divider()
                             .frame(height: 20)
 
-                        if let targetWeight = exercise.targetWeight,
-                            let minReps = exercise.minReps,
-                            let maxReps = exercise.maxReps
-                        {
-                            Text(
-                                "\(Int(targetWeight))kg × \(minReps)-\(maxReps)"
-                            )
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        }
+                    if let targetWeight = exercise.targetWeight,
+                        let minReps = exercise.minReps,
+                        let maxReps = exercise.maxReps
+                    {
+                        Text(
+                            "\(String(format: "%.1f", targetWeight))kg × \(minReps)-\(maxReps)"
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    }
                     }
                 }
             } else {
@@ -180,6 +187,7 @@ struct ActiveSessionView: View {
                     .foregroundStyle(.secondary)
 
                 TextField("0", text: $weight)
+                    .focused($focusedField, equals: .weight)
                     .keyboardType(.decimalPad)
                     .font(.system(size: 32, weight: .bold))
                     .multilineTextAlignment(.center)
@@ -206,6 +214,7 @@ struct ActiveSessionView: View {
                     .foregroundStyle(.secondary)
 
                 TextField("0", text: $reps)
+                    .focused($focusedField, equals: .reps)
                     .keyboardType(.numberPad)
                     .font(.system(size: 32, weight: .bold))
                     .multilineTextAlignment(.center)
@@ -227,6 +236,7 @@ struct ActiveSessionView: View {
                 .foregroundStyle(.secondary)
 
             TextField("0", text: $duration)
+                .focused($focusedField, equals: .duration)
                 .keyboardType(.numberPad)
                 .font(.system(size: 32, weight: .bold))
                 .multilineTextAlignment(.center)
@@ -483,13 +493,22 @@ struct ActiveSessionView: View {
 
 struct NextExercisePickerView: View {
     var sessionManager: SessionManager
+    var isStartingExercise: Bool = false
     @Environment(\.dismiss) var dismiss
+
+    var exercisesToShow: [Exercise] {
+        if isStartingExercise {
+            return sessionManager.pendingSplit?.exercises ?? []
+        } else {
+            return sessionManager.remainingExercisesInSplit
+        }
+    }
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(sessionManager.remainingExercisesInSplit) { exercise in
+                    ForEach(exercisesToShow) { exercise in
                         Button {
                             sessionManager.selectNextExercise(exercise)
                             dismiss()
@@ -509,17 +528,21 @@ struct NextExercisePickerView: View {
                         }
                     }
                 } header: {
-                    Text("Select your next exercise")
+                    Text(isStartingExercise ? "Select your starting exercise" : "Select your next exercise")
                 } footer: {
-                    Text("Choose which exercise you want to perform next.")
+                    Text(isStartingExercise ? "Choose which exercise you want to start with." : "Choose which exercise you want to perform next.")
                 }
             }
-            .navigationTitle("Next Exercise")
+            .navigationTitle(isStartingExercise ? "Starting Exercise" : "Next Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        sessionManager.isChoosingNextExercise = false
+                        if isStartingExercise {
+                            sessionManager.isChoosingStartingExercise = false
+                        } else {
+                            sessionManager.isChoosingNextExercise = false
+                        }
                         dismiss()
                     }
                 }
@@ -538,7 +561,7 @@ struct NextExercisePickerView: View {
                 parts.append("\(min)-\(max) reps")
             }
             if let weight = exercise.targetWeight {
-                parts.append("@ \(Int(weight))kg")
+                parts.append("@ \(String(format: "%.1f", weight))kg")
             }
             return parts.joined(separator: " ")
         }

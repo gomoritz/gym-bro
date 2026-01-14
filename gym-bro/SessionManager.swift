@@ -15,6 +15,7 @@ class SessionManager: Identifiable, Hashable {
     let id = UUID()
     
     var currentSplit: Split?
+    var pendingSplit: Split?
     var currentExerciseIndex: Int = 0
     var transitionToExercise: Exercise?
     var isRestTimerActive: Bool = false
@@ -24,6 +25,7 @@ class SessionManager: Identifiable, Hashable {
     var isTimerExpired: Bool = false
     
     var isChoosingNextExercise: Bool = false
+    var isChoosingStartingExercise: Bool = false
     
     private var modelContext: ModelContext?
     private var timer: Timer?
@@ -88,10 +90,25 @@ class SessionManager: Identifiable, Hashable {
     // MARK: - Session Management
     
     func startSession(for split: Split, context: ModelContext) {
-        self.currentSplit = split
-        self.currentExerciseIndex = 0
-        self.transitionToExercise = nil
+        self.pendingSplit = split
         self.modelContext = context
+        
+        // Show exercise picker if multiple exercises
+        if let exercises = split.exercises, exercises.count > 1 {
+            self.isChoosingStartingExercise = true
+        } else {
+            // Only one exercise, start immediately
+            startSessionWithExercise(at: 0)
+        }
+    }
+    
+    func startSessionWithExercise(at index: Int) {
+        guard let split = pendingSplit else { return }
+        
+        self.currentSplit = split
+        self.currentExerciseIndex = index
+        self.transitionToExercise = nil
+        self.modelContext = modelContext
         self.isTimerExpired = false
         
         let session = WorkoutSession(
@@ -99,8 +116,11 @@ class SessionManager: Identifiable, Hashable {
             split: split
         )
         
-        context.insert(session)
+        if let context = modelContext {
+            context.insert(session)
+        }
         self.activeSession = session
+        self.pendingSplit = nil
         
         // Capture values before the Task to avoid race conditions
         let exerciseName = currentExercise?.name
@@ -153,9 +173,8 @@ class SessionManager: Identifiable, Hashable {
         
         // Auto-update target weight if conditions are met
         if let minReps = exercise.minReps,
-           let maxReps = exercise.maxReps,
            let targetWeight = exercise.targetWeight,
-           reps >= minReps && reps <= maxReps && weight > targetWeight {
+           reps >= minReps && weight > targetWeight {
             exercise.targetWeight = weight
         }
         
@@ -221,18 +240,25 @@ class SessionManager: Identifiable, Hashable {
     }
 
     func selectNextExercise(_ exercise: Exercise) {
-        guard let split = currentSplit,
+        guard let split = currentSplit ?? pendingSplit,
               let exercises = split.exercises,
               let index = exercises.firstIndex(of: exercise) else {
             return
         }
         
+        let isStartingExercise = isChoosingStartingExercise
         isChoosingNextExercise = false
-        currentExerciseIndex = index
-        transitionToExercise = exercise
+        isChoosingStartingExercise = false
         
-        // Start the transition timer
-        startTimer()
+        if isStartingExercise {
+            // Starting a new session - create session with this exercise
+            startSessionWithExercise(at: index)
+        } else {
+            // Moving to next exercise - use transition timer
+            currentExerciseIndex = index
+            transitionToExercise = exercise
+            startTimer()
+        }
     }
     
     func endSession() {
@@ -424,7 +450,7 @@ class SessionManager: Identifiable, Hashable {
                 parts.append("\(min)-\(max) reps")
             }
             if let weight = exercise.targetWeight {
-                parts.append("@ \(Int(weight))kg")
+                parts.append("@ \(String(format: "%.1f", weight))kg")
             }
             return parts.joined(separator: " ")
         }
