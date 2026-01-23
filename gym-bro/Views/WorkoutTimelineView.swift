@@ -183,6 +183,23 @@ struct WorkoutTimelineView: View {
                 Text("Based on \(comparison.sessionCount) previous workout\(comparison.sessionCount > 1 ? "s" : "")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Spacer()
+
+                // Show enhanced data badge if available
+                if hasEnhancedDataInPrediction {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.caption2)
+                        Text("Enhanced")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.yellow)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.yellow.opacity(0.2))
+                    .cornerRadius(6)
+                }
             }
 
             if let avgDuration = comparison.averageDuration {
@@ -204,10 +221,43 @@ struct WorkoutTimelineView: View {
                     }
                 }
             }
+
+            // Show days since last workout if available
+            if let daysSince = daysSinceLastWorkout {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                    Text("\(daysSince) day\(daysSince > 1 ? "s" : "") since last workout")
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+            }
         }
         .padding()
         .background(Color.purple.opacity(0.1))
         .cornerRadius(12)
+    }
+
+    private var hasEnhancedDataInPrediction: Bool {
+        guard let prediction = prediction else { return false }
+        return prediction.exercisePredictions.values.contains { $0.hasEnhancedData }
+    }
+
+    private var daysSinceLastWorkout: Int? {
+        guard let split = sessionManager.currentSplit else { return nil }
+
+        let previousSessions = allSessions.filter { session in
+            session.split?.id == split.id &&
+            session.id != sessionManager.activeSession?.id &&
+            session.startTime < (sessionManager.activeSession?.startTime ?? Date())
+        }.sorted { $0.startTime > $1.startTime }
+
+        guard let lastSession = previousSessions.first,
+              let currentStart = sessionManager.activeSession?.startTime else { return nil }
+
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: lastSession.startTime, to: currentStart).day
+        return days
     }
 
     // MARK: - Progress Bar
@@ -641,9 +691,13 @@ class WorkoutPredictor {
         for exercise in remainingExercises {
             if let pred = exercisePredictions[exercise.id],
                let duration = pred.estimatedDuration {
-                timeRemaining += duration
-                // Add transition time (average 60 seconds between exercises)
-                timeRemaining += 60
+                // Account for skip probability - if >50% skip rate, reduce confidence
+                let adjustedDuration = duration * (1.0 - (pred.skipProbability * 0.5))
+                timeRemaining += adjustedDuration
+
+                // Add transition time - use historical average if available
+                let transitionTime = calculateAverageTransitionTime() ?? 60
+                timeRemaining += transitionTime
             }
         }
 
@@ -666,11 +720,37 @@ class WorkoutPredictor {
     }
 
     private func getHistoricalSessions() -> [WorkoutSession] {
-        return allSessions.filter { session in
+        let baseSessions = allSessions.filter { session in
             session.id != currentSession.id &&
             session.split?.id == split.id &&
             session.endTime != nil
         }
+
+        // Sort by recency (most recent first) for weighted calculations later
+        return baseSessions.sorted { $0.startTime > $1.startTime }
+    }
+
+    private func getTimeAdjustedSessions(_ sessions: [WorkoutSession]) -> [WorkoutSession] {
+        // Filter sessions by similar time of day (within 3 hours)
+        let currentHour = currentSession.timeOfDay
+        return sessions.filter { session in
+            let hourDiff = abs(session.timeOfDay - currentHour)
+            return hourDiff <= 3 || hourDiff >= 21  // Account for wrap-around (23:00 vs 01:00)
+        }
+    }
+
+    private func getDaysSinceLastWorkout() -> Int? {
+        let previousSessions = allSessions.filter { session in
+            session.id != currentSession.id &&
+            session.split?.id == split.id &&
+            session.startTime < currentSession.startTime
+        }.sorted { $0.startTime > $1.startTime }
+
+        guard let lastSession = previousSessions.first else { return nil }
+
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: lastSession.startTime, to: currentSession.startTime).day
+        return days
     }
 
     private func predictExercises() -> [UUID: ExercisePrediction] {
@@ -694,9 +774,25 @@ class WorkoutPredictor {
     private func predictExercise(_ exercise: Exercise, in sessions: [WorkoutSession]) -> ExercisePrediction {
         var durations: [TimeInterval] = []
         var setCounts: [Int] = []
+        var hasEnhancedData = false
+
+        // Check if exercise is frequently skipped
+        let skipCount = sessions.filter { session in
+            session.skippedExerciseIds?.contains(exercise.id) ?? false
+        }.count
+
+        // If exercise is skipped >50% of the time, mark it
+        let skipProbability = sessions.isEmpty ? 0.0 : Double(skipCount) / Double(sessions.count)
+
+        // Prefer time-adjusted sessions if we have enough data
+        var relevantSessions = sessions
+        let timeAdjusted = getTimeAdjustedSessions(sessions)
+        if timeAdjusted.count >= 3 {
+            relevantSessions = timeAdjusted
+        }
 
         // Collect historical data for this specific exercise
-        for session in sessions {
+        for (index, session) in relevantSessions.enumerated() {
             guard let sets = session.sets else { continue }
 
             let exerciseSets = sets
@@ -705,29 +801,64 @@ class WorkoutPredictor {
 
             guard exerciseSets.count >= 1 else { continue }
 
+            // Weight more recent sessions higher (exponential decay)
+            let recencyWeight = pow(0.9, Double(index))
+
             setCounts.append(exerciseSets.count)
 
-            // Calculate duration from first to last set
-            if exerciseSets.count >= 2 {
+            // Calculate duration using enhanced data if available
+            var exerciseDuration: TimeInterval?
+
+            if exerciseSets.count >= 2,
+               let firstSetEnd = exerciseSets.first?.endTime,
+               let lastSetStart = exerciseSets.last?.startTime {
+                // Use endTime of first set to startTime of last set for more accurate duration
+                exerciseDuration = lastSetStart.timeIntervalSince(firstSetEnd)
+                hasEnhancedData = true
+            } else if exerciseSets.count >= 2 {
+                // Fallback to old method
                 let firstSet = exerciseSets.first!
                 let lastSet = exerciseSets.last!
-                let duration = lastSet.startTime.timeIntervalSince(firstSet.startTime)
-                durations.append(duration)
-            } else {
-                // Single set, estimate 30 seconds
-                durations.append(30)
+                exerciseDuration = lastSet.startTime.timeIntervalSince(firstSet.startTime)
+            } else if exerciseSets.count == 1 {
+                // Single set - estimate based on rest timer or default
+                if let restDuration = exerciseSets.first?.restDuration {
+                    exerciseDuration = restDuration
+                    hasEnhancedData = true
+                } else {
+                    exerciseDuration = 30
+                }
+            }
+
+            if let duration = exerciseDuration {
+                // Apply recency weighting to duration
+                durations.append(duration * recencyWeight)
             }
         }
 
-        // Calculate averages
+        // Calculate weighted averages
         let estimatedDuration = durations.isEmpty ? nil : durations.reduce(0, +) / Double(durations.count)
         let estimatedSets = setCounts.isEmpty ? exercise.targetSets : Int(Double(setCounts.reduce(0, +)) / Double(setCounts.count))
 
+        // Adjust for rest recovery patterns (days since last workout)
+        var adjustedDuration = estimatedDuration
+        if let daysSince = getDaysSinceLastWorkout(),
+           let duration = estimatedDuration {
+            // More rest = slightly longer workouts (more sets/energy)
+            if daysSince >= 4 {
+                adjustedDuration = duration * 1.1  // 10% longer
+            } else if daysSince <= 1 {
+                adjustedDuration = duration * 0.95  // 5% shorter (fatigue)
+            }
+        }
+
         return ExercisePrediction(
             exerciseId: exercise.id,
-            estimatedDuration: estimatedDuration,
+            estimatedDuration: adjustedDuration,
             estimatedSets: estimatedSets,
-            historicalSampleSize: sessions.count
+            historicalSampleSize: relevantSessions.count,
+            skipProbability: skipProbability,
+            hasEnhancedData: hasEnhancedData
         )
     }
 
@@ -816,6 +947,43 @@ class WorkoutPredictor {
             durationRange: range
         )
     }
+
+    private func calculateAverageTransitionTime() -> TimeInterval? {
+        let historicalSessions = getHistoricalSessions()
+        var transitionTimes: [TimeInterval] = []
+
+        for session in historicalSessions {
+            guard let sets = session.sets,
+                  let order = session.actualExerciseOrder,
+                  order.count >= 2 else { continue }
+
+            // Calculate time between last set of one exercise and first set of next
+            for i in 0..<(order.count - 1) {
+                let currentExerciseId = order[i]
+                let nextExerciseId = order[i + 1]
+
+                let currentExerciseSets = sets.filter { $0.exercise?.id == currentExerciseId }
+                    .sorted { $0.startTime < $1.startTime }
+                let nextExerciseSets = sets.filter { $0.exercise?.id == nextExerciseId }
+                    .sorted { $0.startTime < $1.startTime }
+
+                if let lastSet = currentExerciseSets.last,
+                   let firstSet = nextExerciseSets.first {
+                    // Use endTime if available, otherwise use startTime
+                    let transitionStart = lastSet.endTime ?? lastSet.startTime
+                    let transitionTime = firstSet.startTime.timeIntervalSince(transitionStart)
+
+                    // Only count reasonable transitions (10s to 5min)
+                    if transitionTime >= 10 && transitionTime <= 300 {
+                        transitionTimes.append(transitionTime)
+                    }
+                }
+            }
+        }
+
+        guard !transitionTimes.isEmpty else { return nil }
+        return transitionTimes.reduce(0, +) / Double(transitionTimes.count)
+    }
 }
 
 // MARK: - Prediction Models
@@ -834,6 +1002,8 @@ struct ExercisePrediction {
     let estimatedDuration: TimeInterval?
     let estimatedSets: Int?
     let historicalSampleSize: Int
+    let skipProbability: Double
+    let hasEnhancedData: Bool
 }
 
 enum PredictionConfidence {
