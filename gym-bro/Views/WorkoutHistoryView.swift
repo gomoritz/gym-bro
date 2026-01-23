@@ -146,8 +146,13 @@ struct WorkoutHistoryView: View {
         }
     }
 
-    private func sectionHeader(for date: Date) -> some View {
-        Text(sectionDateFormatter.string(from: date))
+    private func sectionHeader(for weekStart: Date) -> some View {
+        let calendar = Calendar.current
+        let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+        let startFormatted = sectionDateFormatter.string(from: weekStart)
+        let endFormatted = sectionDateFormatter.string(from: weekEnd)
+
+        return Text("\(startFormatted) – \(endFormatted)")
             .font(.headline)
             .textCase(.uppercase)
     }
@@ -204,8 +209,14 @@ struct WorkoutHistoryView: View {
 
     private var groupedSessions: [Date: [WorkoutSession]] {
         Dictionary(grouping: sessions) { session in
-            Calendar.current.startOfDay(for: session.startTime)
+            startOfWeek(for: session.startTime)
         }
+    }
+
+    private func startOfWeek(for date: Date) -> Date {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return calendar.date(from: components) ?? date
     }
 
     private var orphanedSessionsCount: Int {
@@ -249,7 +260,7 @@ struct WorkoutHistoryView: View {
 
     private var sectionDateFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d, yyyy"
+        formatter.dateFormat = "MMM d, yyyy"
         return formatter
     }
 
