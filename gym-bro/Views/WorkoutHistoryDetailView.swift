@@ -11,10 +11,12 @@ import SwiftData
 struct WorkoutHistoryDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allSessions: [WorkoutSession]
+    @Query private var allSplits: [Split]
 
     let session: WorkoutSession
 
     @State private var showDeleteConfirmation = false
+    @State private var showSplitPicker = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -53,6 +55,69 @@ struct WorkoutHistoryDetailView: View {
         }
     }
 
+    // MARK: - Split Picker Sheet
+
+    private var splitPickerSheet: some View {
+        NavigationStack {
+            List {
+                if allSplits.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundStyle(.orange)
+
+                        Text("No Splits Available")
+                            .font(.headline)
+
+                        Text("Create a split first to assign it to this workout")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                } else {
+                    ForEach(allSplits) { split in
+                        Button {
+                            assignSplit(split)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(split.name)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+
+                                if let exercises = split.exercises, !exercises.isEmpty {
+                                    Text("\(exercises.count) exercise\(exercises.count > 1 ? "s" : "")")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Assign Split")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        showSplitPicker = false
+                    }
+                }
+            }
+        }
+    }
+
+    private func assignSplit(_ split: Split) {
+        session.split = split
+        session.splitName = split.name
+        session.splitId = split.id
+
+        try? modelContext.save()
+        showSplitPicker = false
+    }
+
     // MARK: - General Data Section
 
     private var generalDataSection: some View {
@@ -70,7 +135,36 @@ struct WorkoutHistoryDetailView: View {
                            value: formatDuration(endTime.timeIntervalSince(session.startTime)))
                 }
 
-                InfoRow(icon: "list.bullet.clipboard", label: "Split", value: session.displaySplitName)
+                if session.split == nil || session.splitId == nil || session.splitName == nil {
+                    // Orphaned session - show assign button
+                    HStack {
+                        Label {
+                            Text("Split")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } icon: {
+                            Image(systemName: "list.bullet.clipboard")
+                                .foregroundStyle(.orange)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            showSplitPicker = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.caption)
+                                Text("Assign Split")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundStyle(.orange)
+                        }
+                    }
+                } else {
+                    InfoRow(icon: "list.bullet.clipboard", label: "Split", value: session.displaySplitName)
+                }
 
                 if let location = session.location, !location.isEmpty {
                     InfoRow(icon: "location.fill", label: "Location", value: location)
@@ -79,6 +173,9 @@ struct WorkoutHistoryDetailView: View {
             .padding()
             .background(Color.blue.opacity(0.1))
             .cornerRadius(12)
+        }
+        .sheet(isPresented: $showSplitPicker) {
+            splitPickerSheet
         }
     }
 

@@ -72,6 +72,30 @@ struct WorkoutHistoryView: View {
 
     private var workoutListView: some View {
         List {
+            if orphanedSessionsCount > 0 {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.orange)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(orphanedSessionsCount) workout\(orphanedSessionsCount > 1 ? "s" : "") need\(orphanedSessionsCount == 1 ? "s" : "") a split assigned")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+
+                            Text("Tap on affected workouts to assign a split")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                    .listRowBackground(Color.orange.opacity(0.1))
+                }
+            }
+
             ForEach(groupedSessions.keys.sorted(by: >), id: \.self) { date in
                 Section(header: sectionHeader(for: date)) {
                     ForEach(groupedSessions[date] ?? []) { session in
@@ -132,8 +156,16 @@ struct WorkoutHistoryView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(session.displaySplitName)
-                        .font(.headline)
+                    HStack(spacing: 6) {
+                        Text(session.displaySplitName)
+                            .font(.headline)
+
+                        if session.split == nil {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
 
                     Text(timeFormatter.string(from: session.startTime))
                         .font(.subheadline)
@@ -174,6 +206,10 @@ struct WorkoutHistoryView: View {
         Dictionary(grouping: sessions) { session in
             Calendar.current.startOfDay(for: session.startTime)
         }
+    }
+
+    private var orphanedSessionsCount: Int {
+        sessions.filter { $0.split == nil }.count
     }
 
     private func uniqueExerciseCount(in session: WorkoutSession) -> Int? {
