@@ -56,11 +56,23 @@ class SessionManager: Identifiable, Hashable {
     
     var lastSet: WorkoutSet? {
         guard let session = activeSession,
+              let sets = session.sets else {
+            return nil
+        }
+
+        // Get the most recent set overall (not just for current exercise)
+        return sets
+            .sorted { $0.startTime > $1.startTime }
+            .first
+    }
+
+    var lastSetForCurrentExercise: WorkoutSet? {
+        guard let session = activeSession,
               let currentEx = currentExercise,
               let sets = session.sets else {
             return nil
         }
-        
+
         // Get the most recent set for the current exercise
         return sets
             .filter { $0.exercise?.id == currentEx.id }
@@ -113,7 +125,9 @@ class SessionManager: Identifiable, Hashable {
         
         let session = WorkoutSession(
             startTime: Date.now,
-            split: split
+            split: split,
+            splitName: split.name,
+            splitId: split.id
         )
         
         if let context = modelContext {
@@ -147,37 +161,47 @@ class SessionManager: Identifiable, Hashable {
               let context = modelContext else {
             return
         }
-        
-        // Create a new WorkoutSet
+
+        let now = Date.now
+
+        // Calculate rest duration if there was a previous set
+        if let previous = lastSet {
+            let restTaken = now.timeIntervalSince(previous.startTime)
+            previous.restDuration = restTaken
+            previous.restTimerUsed = isRestTimerActive || isTimerExpired
+        }
+
+        // Create a new WorkoutSet with completion time
         let workoutSet = WorkoutSet(
-            startTime: Date.now,
+            startTime: now,
             weight: weight,
             reps: reps,
             exercise: exercise,
-            session: session
+            session: session,
+            endTime: now  // Set is completed immediately when logged
         )
-        
+
         context.insert(workoutSet)
-        
+
         // Add to session's sets
         if session.sets == nil {
             session.sets = []
         }
         session.sets?.append(workoutSet)
-        
+
         // Add to exercise's history
         if exercise.history == nil {
             exercise.history = []
         }
         exercise.history?.append(workoutSet)
-        
+
         // Auto-update target weight if conditions are met
         if let minReps = exercise.minReps,
            let targetWeight = exercise.targetWeight,
            reps >= minReps && weight > targetWeight {
             exercise.targetWeight = weight
         }
-        
+
         // Save the context
         try? context.save()
     }
@@ -188,29 +212,39 @@ class SessionManager: Identifiable, Hashable {
               let context = modelContext else {
             return
         }
-        
-        // Create a new WorkoutSet with duration
+
+        let now = Date.now
+
+        // Calculate rest duration if there was a previous set
+        if let previous = lastSet {
+            let restTaken = now.timeIntervalSince(previous.startTime)
+            previous.restDuration = restTaken
+            previous.restTimerUsed = isRestTimerActive || isTimerExpired
+        }
+
+        // Create a new WorkoutSet with duration and completion time
         let workoutSet = WorkoutSet(
-            startTime: Date.now,
+            startTime: now,
             duration: minutes,
             exercise: exercise,
-            session: session
+            session: session,
+            endTime: now  // Set is completed immediately when logged
         )
-        
+
         context.insert(workoutSet)
-        
+
         // Add to session's sets
         if session.sets == nil {
             session.sets = []
         }
         session.sets?.append(workoutSet)
-        
+
         // Add to exercise's history
         if exercise.history == nil {
             exercise.history = []
         }
         exercise.history?.append(workoutSet)
-        
+
         // Save the context
         try? context.save()
     }
@@ -266,21 +300,48 @@ class SessionManager: Identifiable, Hashable {
               let context = modelContext else {
             return
         }
-        
+
         session.endTime = Date.now
+
+        // Track actual exercise order performed
+        if let sets = session.sets {
+            var orderSeen: [UUID] = []
+            let sortedSets = sets.sorted { $0.startTime < $1.startTime }
+
+            for set in sortedSets {
+                if let exerciseId = set.exercise?.id, !orderSeen.contains(exerciseId) {
+                    orderSeen.append(exerciseId)
+                }
+            }
+
+            session.actualExerciseOrder = orderSeen.isEmpty ? nil : orderSeen
+        }
+
+        // Track skipped exercises
+        if let split = currentSplit,
+           let allExercises = split.exercises,
+           let performedOrder = session.actualExerciseOrder {
+            let performedIds = Set(performedOrder)
+            let skippedIds = allExercises
+                .map { $0.id }
+                .filter { !performedIds.contains($0) }
+
+            session.skippedExerciseIds = skippedIds.isEmpty ? nil : skippedIds
+        }
+
         try? context.save()
-        
+
         // Clean up
         activeSession = nil
         currentSplit = nil
         currentExerciseIndex = 0
         transitionToExercise = nil
         isTimerExpired = false
-        
+
         if isRestTimerActive {
             toggleTimer()
         }
-        
+
         // End the live activity
         Task { @MainActor in
             WorkoutLiveActivityManager.shared.endWorkoutActivity()
