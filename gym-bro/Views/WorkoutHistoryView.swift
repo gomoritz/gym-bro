@@ -37,17 +37,6 @@ struct WorkoutHistoryView: View {
                         }
                     }
                 }
-
-                if isEditMode && !selectedSessions.isEmpty {
-                    ToolbarItem(placement: .bottomBar) {
-                        Button(role: .destructive) {
-                            showDeleteConfirmation = true
-                        } label: {
-                            Label("Delete \(selectedSessions.count) workout\(selectedSessions.count > 1 ? "s" : "")",
-                                  systemImage: "trash")
-                        }
-                    }
-                }
             }
             .confirmationDialog(
                 "Delete \(selectedSessions.count) workout\(selectedSessions.count > 1 ? "s" : "")?",
@@ -87,17 +76,17 @@ struct WorkoutHistoryView: View {
                 Section(header: sectionHeader(for: date)) {
                     ForEach(groupedSessions[date] ?? []) { session in
                         if isEditMode {
-                            workoutRow(session)
-                                .overlay(alignment: .leading) {
-                                    Image(systemName: selectedSessions.contains(session.id) ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(selectedSessions.contains(session.id) ? .blue : .gray)
-                                        .font(.title3)
-                                        .padding(.leading, -32)
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    toggleSelection(session)
-                                }
+                            HStack(spacing: 12) {
+                                Image(systemName: selectedSessions.contains(session.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedSessions.contains(session.id) ? .blue : .gray)
+                                    .font(.title2)
+
+                                workoutRow(session)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                toggleSelection(session)
+                            }
                         } else {
                             NavigationLink {
                                 WorkoutHistoryDetailView(session: session)
@@ -110,6 +99,27 @@ struct WorkoutHistoryView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom) {
+            if isEditMode && !selectedSessions.isEmpty {
+                Button(role: .destructive) {
+                    showDeleteConfirmation = true
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text("Delete \(selectedSessions.count) workout\(selectedSessions.count > 1 ? "s" : "")")
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.red)
+                    .foregroundStyle(.white)
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+                .background(.ultraThinMaterial)
+            }
+        }
     }
 
     private func sectionHeader(for date: Date) -> some View {
