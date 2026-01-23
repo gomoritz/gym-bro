@@ -247,7 +247,7 @@ struct WorkoutTimelineView: View {
         guard let split = sessionManager.currentSplit else { return nil }
 
         let previousSessions = allSessions.filter { session in
-            session.split?.id == split.id &&
+            session.splitId == split.id &&
             session.id != sessionManager.activeSession?.id &&
             session.startTime < (sessionManager.activeSession?.startTime ?? Date())
         }.sorted { $0.startTime > $1.startTime }
@@ -722,7 +722,7 @@ class WorkoutPredictor {
     private func getHistoricalSessions() -> [WorkoutSession] {
         let baseSessions = allSessions.filter { session in
             session.id != currentSession.id &&
-            session.split?.id == split.id &&
+            session.splitId == split.id &&
             session.endTime != nil
         }
 
@@ -742,7 +742,7 @@ class WorkoutPredictor {
     private func getDaysSinceLastWorkout() -> Int? {
         let previousSessions = allSessions.filter { session in
             session.id != currentSession.id &&
-            session.split?.id == split.id &&
+            session.splitId == split.id &&
             session.startTime < currentSession.startTime
         }.sorted { $0.startTime > $1.startTime }
 

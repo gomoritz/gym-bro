@@ -70,7 +70,7 @@ struct WorkoutHistoryDetailView: View {
                            value: formatDuration(endTime.timeIntervalSince(session.startTime)))
                 }
 
-                InfoRow(icon: "list.bullet.clipboard", label: "Split", value: session.split?.name ?? "Unknown")
+                InfoRow(icon: "list.bullet.clipboard", label: "Split", value: session.displaySplitName)
 
                 if let location = session.location, !location.isEmpty {
                     InfoRow(icon: "location.fill", label: "Location", value: location)
@@ -501,11 +501,11 @@ struct WorkoutHistoryDetailView: View {
     }
 
     private var previousWorkoutComparison: WorkoutComparison? {
-        guard let split = session.split else { return nil }
+        guard let splitId = session.splitId else { return nil }
 
         // Find previous workout with same split
         let previousSession = allSessions
-            .filter { $0.split?.id == split.id && $0.id != session.id && $0.startTime < session.startTime }
+            .filter { $0.splitId == splitId && $0.id != session.id && $0.startTime < session.startTime }
             .sorted { $0.startTime > $1.startTime }
             .first
 
@@ -550,21 +550,8 @@ struct WorkoutHistoryDetailView: View {
             insights.append("Great exercise variety with \(uniqueExerciseCount) different movements")
         }
 
-        // Consistency with targets
-        if let sets = session.sets, let split = session.split, let exercises = split.exercises {
-            let exercisesWithTargets = exercises.filter { $0.hasTarget }
-            if !exercisesWithTargets.isEmpty {
-                let completedAsPlanned = exercisesWithTargets.filter { exercise in
-                    let exerciseSets = sets.filter { $0.exercise?.id == exercise.id }
-                    return exerciseSets.count == exercise.targetSets
-                }.count
-
-                let percentage = (Double(completedAsPlanned) / Double(exercisesWithTargets.count)) * 100
-                if percentage >= 80 {
-                    insights.append("Followed planned workout structure closely")
-                }
-            }
-        }
+        // Note: Consistency with targets insight removed - requires split relationship access
+        // which can crash on orphaned data. Could be re-added if exercise targets are stored on WorkoutSet.
 
         // Personal records
         if !personalRecords.isEmpty {

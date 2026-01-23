@@ -20,8 +20,12 @@ class WorkoutSession: Identifiable {
     var skippedExerciseIds: [UUID]?       // IDs of exercises that were skipped
     var actualExerciseOrder: [UUID]?      // Order exercises were actually performed
 
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .nullify)
     var split: Split?
+
+    // Store split info for display when split is deleted (avoids crash on orphaned references)
+    var splitName: String?
+    var splitId: UUID?
 
     @Relationship(deleteRule: .cascade, inverse: \WorkoutSet.session)
     var sets: [WorkoutSet]?
@@ -33,7 +37,9 @@ class WorkoutSession: Identifiable {
         location: String? = nil,
         split: Split? = nil,
         skippedExerciseIds: [UUID]? = nil,
-        actualExerciseOrder: [UUID]? = nil
+        actualExerciseOrder: [UUID]? = nil,
+        splitName: String? = nil,
+        splitId: UUID? = nil
     ) {
         self.id = id
         self.startTime = startTime
@@ -42,6 +48,13 @@ class WorkoutSession: Identifiable {
         self.split = split
         self.skippedExerciseIds = skippedExerciseIds
         self.actualExerciseOrder = actualExerciseOrder
+        self.splitName = splitName ?? split?.name
+        self.splitId = splitId ?? split?.id
+    }
+
+    // Safe accessor for split name - does NOT access split relationship to avoid crash
+    var displaySplitName: String {
+        splitName ?? "Unknown Split"
     }
 
     // Computed properties for temporal analysis

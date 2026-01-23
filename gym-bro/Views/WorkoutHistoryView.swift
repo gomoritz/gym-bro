@@ -132,7 +132,7 @@ struct WorkoutHistoryView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(session.split?.name ?? "Unknown Split")
+                    Text(session.displaySplitName)
                         .font(.headline)
 
                     Text(timeFormatter.string(from: session.startTime))

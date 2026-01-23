@@ -125,7 +125,9 @@ class SessionManager: Identifiable, Hashable {
         
         let session = WorkoutSession(
             startTime: Date.now,
-            split: split
+            split: split,
+            splitName: split.name,
+            splitId: split.id
         )
         
         if let context = modelContext {
