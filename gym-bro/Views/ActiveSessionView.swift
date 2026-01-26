@@ -456,8 +456,8 @@ struct ActiveSessionView: View {
         }
 
         if exercise.hasTarget {
-            // Priority: last set > target values > empty
-            if let lastSet = sessionManager.lastSet {
+            // Priority: last set for current exercise > target values > empty
+            if let lastSet = sessionManager.lastSetForCurrentExercise {
                 weight = String(format: "%.1f", lastSet.weight ?? 0)
                 reps = "\(lastSet.reps ?? 0)"
             } else {
@@ -478,7 +478,7 @@ struct ActiveSessionView: View {
             duration = ""
         } else {
             // Duration-based exercise
-            if let lastSet = sessionManager.lastSet,
+            if let lastSet = sessionManager.lastSetForCurrentExercise,
                 let lastDuration = lastSet.duration
             {
                 duration = "\(lastDuration)"
