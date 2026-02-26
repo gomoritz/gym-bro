@@ -2,44 +2,43 @@
 //  ExerciseListView.swift
 //  gym-bro
 //
-//  Created by Moritz Gößl on 08.01.26.
+//  Created by Moritz Goessl on 08.01.26.
 //
 
 import SwiftData
 import SwiftUI
+import os
+
+private let logger = Logger(subsystem: "com.gym-bro", category: "ExerciseListView")
 
 struct ExerciseListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
     @State private var isPresentingAddSheet = false
+    @State private var searchText = ""
+
+    private var filteredExercises: [Exercise] {
+        if searchText.isEmpty {
+            return exercises
+        }
+        return exercises.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            ($0.category?.name.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(exercises) { exercise in
-                    NavigationLink {
-                        ExerciseFormView(exercise: exercise)
-                    } label: {
-                        VStack(alignment: .leading) {
-                            Text(exercise.name)
-                                .font(.headline)
-
-                            if let categoryName = exercise.category?.name {
-                                Text(categoryName)
-                                    .font(.caption)
-                                    .foregroundStyle(.blue)
-                            }
-
-                            Text(exercise.splitNames ?? "No splits")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+            Group {
+                if exercises.isEmpty {
+                    emptyStateView
+                } else {
+                    exerciseList
                 }
-                .onDelete(perform: deleteExercises)
             }
             .navigationTitle("Exercises")
+            .searchable(text: $searchText, prompt: "Search exercises")
             .toolbar {
                 Button("Add", systemImage: "plus") {
                     isPresentingAddSheet = true
@@ -53,10 +52,68 @@ struct ExerciseListView: View {
         }
     }
 
+    private var emptyStateView: some View {
+        VStack(spacing: Theme.Spacing.xl) {
+            Image(systemName: "dumbbell.fill")
+                .font(.system(size: 70))
+                .foregroundStyle(.tertiary)
+
+            Text("No Exercises Yet")
+                .font(.system(.title2, design: .rounded, weight: .semibold))
+
+            Text("Add exercises to build your workout library")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+    }
+
+    private var exerciseList: some View {
+        List {
+            ForEach(filteredExercises) { exercise in
+                NavigationLink {
+                    ExerciseFormView(exercise: exercise)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            Text(exercise.name)
+                                .font(.headline)
+
+                            if let target = exercise.targetString {
+                                Text(target)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            if let splitNames = exercise.splitNames {
+                                Text(splitNames)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+
+                        Spacer()
+
+                        if let categoryName = exercise.category?.name {
+                            Text(categoryName)
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                                .padding(.horizontal, Theme.Spacing.sm)
+                                .padding(.vertical, Theme.Spacing.xs)
+                                .background(.blue.opacity(0.12), in: Capsule())
+                        }
+                    }
+                    .padding(.vertical, Theme.Spacing.xs)
+                }
+            }
+            .onDelete(perform: deleteExercises)
+        }
+    }
+
     private func deleteExercises(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                modelContext.delete(exercises[index])
+                modelContext.delete(filteredExercises[index])
             }
         }
     }
@@ -93,6 +150,7 @@ struct ExerciseFormView: View {
         Form {
             Section {
                 TextField("Exercise name", text: $name)
+                    .font(.headline)
                 TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(2...)
                 Toggle("Set target", isOn: $hasTarget)
@@ -140,33 +198,35 @@ struct ExerciseFormView: View {
                         )
 
                         Slider(value: $targetWeight, in: 1...200, step: 0.5)
+                            .tint(.blue)
                     }
                 }
             }
-            
+
             Section("Rest Timer") {
                 Toggle("Override default rest timer", isOn: $hasRestTimerOverride)
-                
+
                 if hasRestTimerOverride {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                         HStack {
                             Slider(
                                 value: $restTimerOverride,
-                                in: 30...600,
-                                step: 15
+                                in: Constants.Timer.restDurationRange,
+                                step: Constants.Timer.restDurationStep
                             )
-                            
+                            .tint(.blue)
+
                             Text("\(Int(restTimerOverride))s")
-                                .font(.title3)
-                                .fontWeight(.semibold)
+                                .font(.system(.title3, design: .rounded, weight: .semibold))
+                                .monospacedDigit()
                                 .frame(width: 50)
                         }
-                        
+
                         Text("Rest timer duration for this exercise")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, Theme.Spacing.sm)
                 }
             }
         }
@@ -213,7 +273,6 @@ struct ExerciseFormView: View {
 
     private func save() {
         if let exercise = exercise {
-            // Update existing
             exercise.name = name
             exercise.notes = !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil
             exercise.category = selectedCategory
@@ -223,7 +282,6 @@ struct ExerciseFormView: View {
             exercise.maxReps = hasTarget ? maxReps : nil
             exercise.restTimerDurationOverride = hasRestTimerOverride ? restTimerOverride : nil
         } else {
-            // Create new
             let newExercise = Exercise(
                 name: name,
                 notes: !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil,
@@ -236,13 +294,16 @@ struct ExerciseFormView: View {
             newExercise.category = selectedCategory
             modelContext.insert(newExercise)
         }
-        
-        try? modelContext.save()
+
+        do {
+            try modelContext.save()
+        } catch {
+            logger.error("Failed to save exercise: \(error.localizedDescription)")
+        }
         dismiss()
     }
 }
 
 #Preview(traits: .sampleData) {
     ExerciseListView()
-    //AddExerciseSheet()
 }

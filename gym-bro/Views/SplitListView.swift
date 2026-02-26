@@ -2,7 +2,7 @@
 //  SplitListView.swift
 //  gym-bro
 //
-//  Created by Moritz Gößl on 08.01.26.
+//  Created by Moritz Goessl on 08.01.26.
 //
 
 import SwiftData
@@ -17,16 +17,12 @@ struct SplitListView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(splits) { split in
-                    NavigationLink {
-                        SplitDetailView(split: split)
-                    } label: {
-                        Text(split.name)
-                            .font(.headline)
-                    }
+            Group {
+                if splits.isEmpty {
+                    emptyStateView
+                } else {
+                    splitList
                 }
-                .onDelete(perform: deleteSplit)
             }
             .navigationTitle("Splits")
             .toolbar {
@@ -39,12 +35,71 @@ struct SplitListView: View {
                 Button("Add") {
                     let newSplit = Split(name: newSplitName)
                     modelContext.insert(newSplit)
+                    newSplitName = ""
                 }
-                Button("Cancel", role: .cancel) {}
+                Button("Cancel", role: .cancel) {
+                    newSplitName = ""
+                }
             }
         }
     }
-    
+
+    private var emptyStateView: some View {
+        VStack(spacing: Theme.Spacing.xl) {
+            Image(systemName: "list.bullet.clipboard")
+                .font(.system(size: 70))
+                .foregroundStyle(.tertiary)
+
+            Text("No Splits Yet")
+                .font(.system(.title2, design: .rounded, weight: .semibold))
+
+            Text("Create a split to organize your workouts")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+    }
+
+    private var splitList: some View {
+        List {
+            ForEach(splits) { split in
+                NavigationLink {
+                    SplitDetailView(split: split)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            Text(split.name)
+                                .font(.headline)
+
+                            if let exercises = split.exercises, !exercises.isEmpty {
+                                Text("\(exercises.count) exercise\(exercises.count > 1 ? "s" : "")")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("No exercises")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+
+                        Spacer()
+
+                        if let count = split.exercises?.count, count > 0 {
+                            Text("\(count)")
+                                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.blue)
+                                .padding(.horizontal, Theme.Spacing.sm)
+                                .padding(.vertical, Theme.Spacing.xs)
+                                .background(.blue.opacity(0.12), in: Capsule())
+                        }
+                    }
+                    .padding(.vertical, Theme.Spacing.xs)
+                }
+            }
+            .onDelete(perform: deleteSplit)
+        }
+    }
+
     private func deleteSplit(offsets: IndexSet) {
         for index in offsets {
             modelContext.delete(splits[index])

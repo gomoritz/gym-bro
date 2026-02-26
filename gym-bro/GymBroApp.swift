@@ -2,7 +2,7 @@
 //  GymBroApp.swift
 //  gym-bro
 //
-//  Created by Moritz Gößl on 08.01.26.
+//  Created by Moritz Goessl on 08.01.26.
 //
 
 import SwiftData
@@ -32,13 +32,15 @@ struct GymBroApp: App {
 
     @Environment(\.scenePhase) var scenePhase
     @State private var sessionManager = SessionManager()
-    
+    @State private var settings = Settings()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(sessionManager)
+                .environment(settings)
                 .onAppear {
-                    // Request notification authorization early to ensure activities can show alerts
+                    sessionManager.configure(settings: settings)
                     Task { @MainActor in
                         WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
                     }
@@ -47,7 +49,6 @@ struct GymBroApp: App {
         .modelContainer(sharedModelContainer)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                // User has returned to the app - acknowledge any expired timers
                 Task { @MainActor in
                     sessionManager.acknowledgeTimerExpiry()
                 }

@@ -2,29 +2,28 @@
 //  Settings.swift
 //  gym-bro
 //
-//  Created by Moritz Gößl on 13.01.26.
+//  Created by Moritz Goessl on 13.01.26.
 //
 
 import Foundation
-import Combine
+import SwiftUI
 
-class Settings: ObservableObject {
-    @Published var defaultRestTimerDuration: TimeInterval {
+@Observable
+class Settings {
+    var defaultRestTimerDuration: TimeInterval {
         didSet {
             UserDefaults.standard.set(defaultRestTimerDuration, forKey: "defaultRestTimerDuration")
         }
     }
 
-    @Published var defaultTransitionTimerDuration: TimeInterval {
+    var defaultTransitionTimerDuration: TimeInterval {
         didSet {
             UserDefaults.standard.set(defaultTransitionTimerDuration, forKey: "defaultTransitionTimerDuration")
         }
     }
 
-    static let shared = Settings()
-
     init() {
-        self.defaultRestTimerDuration = UserDefaults.standard.object(forKey: "defaultRestTimerDuration") as? TimeInterval ?? 120
-        self.defaultTransitionTimerDuration = UserDefaults.standard.object(forKey: "defaultTransitionTimerDuration") as? TimeInterval ?? 60
+        self.defaultRestTimerDuration = UserDefaults.standard.object(forKey: "defaultRestTimerDuration") as? TimeInterval ?? Constants.Timer.defaultRestDuration
+        self.defaultTransitionTimerDuration = UserDefaults.standard.object(forKey: "defaultTransitionTimerDuration") as? TimeInterval ?? Constants.Timer.defaultTransitionDuration
     }
 }

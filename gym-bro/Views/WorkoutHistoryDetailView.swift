@@ -7,6 +7,9 @@
 
 import SwiftUI
 import SwiftData
+import os
+
+private let logger = Logger(subsystem: "com.gym-bro", category: "WorkoutHistoryDetailView")
 
 struct WorkoutHistoryDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -21,7 +24,7 @@ struct WorkoutHistoryDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
                 generalDataSection
                 statsSection
                 analysesSection
@@ -61,7 +64,7 @@ struct WorkoutHistoryDetailView: View {
         NavigationStack {
             List {
                 if allSplits.isEmpty {
-                    VStack(spacing: 12) {
+                    VStack(spacing: Theme.Spacing.md) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.largeTitle)
                             .foregroundStyle(.orange)
@@ -81,7 +84,7 @@ struct WorkoutHistoryDetailView: View {
                         Button {
                             assignSplit(split)
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                                 Text(split.name)
                                     .font(.headline)
                                     .foregroundStyle(.primary)
@@ -92,7 +95,7 @@ struct WorkoutHistoryDetailView: View {
                                         .foregroundStyle(.secondary)
                                 }
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Theme.Spacing.xs)
                         }
                     }
                 }
@@ -114,19 +117,22 @@ struct WorkoutHistoryDetailView: View {
         session.splitName = split.name
         session.splitId = split.id
 
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            logger.error("Failed to save split assignment: \(error.localizedDescription)")
+        }
         showSplitPicker = false
     }
 
     // MARK: - General Data Section
 
     private var generalDataSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text("General Information")
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.system(.title2, design: .rounded, weight: .bold))
 
-            VStack(spacing: 12) {
+            VStack(spacing: Theme.Spacing.md) {
                 InfoRow(icon: "calendar", label: "Date", value: dateFormatter.string(from: session.startTime))
                 InfoRow(icon: "clock", label: "Time", value: timeFormatter.string(from: session.startTime))
 
@@ -136,7 +142,6 @@ struct WorkoutHistoryDetailView: View {
                 }
 
                 if session.split == nil || session.splitId == nil || session.splitName == nil {
-                    // Orphaned session - show assign button
                     HStack {
                         Label {
                             Text("Split")
@@ -152,7 +157,7 @@ struct WorkoutHistoryDetailView: View {
                         Button {
                             showSplitPicker = true
                         } label: {
-                            HStack(spacing: 4) {
+                            HStack(spacing: Theme.Spacing.xs) {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .font(.caption)
                                 Text("Assign Split")
@@ -170,9 +175,8 @@ struct WorkoutHistoryDetailView: View {
                     InfoRow(icon: "location.fill", label: "Location", value: location)
                 }
             }
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(12)
+            .padding(Theme.Spacing.lg)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
         }
         .sheet(isPresented: $showSplitPicker) {
             splitPickerSheet
@@ -182,13 +186,12 @@ struct WorkoutHistoryDetailView: View {
     // MARK: - Stats Section
 
     private var statsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text("Statistics")
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.system(.title2, design: .rounded, weight: .bold))
 
-            VStack(spacing: 16) {
-                HStack(spacing: 16) {
+            VStack(spacing: Theme.Spacing.lg) {
+                HStack(spacing: Theme.Spacing.lg) {
                     StatCard(
                         title: "Total Weight",
                         value: String(format: "%.0f kg", totalMovedWeight),
@@ -204,7 +207,7 @@ struct WorkoutHistoryDetailView: View {
                     )
                 }
 
-                HStack(spacing: 16) {
+                HStack(spacing: Theme.Spacing.lg) {
                     StatCard(
                         title: "Total Reps",
                         value: "\(totalReps)",
@@ -232,10 +235,10 @@ struct WorkoutHistoryDetailView: View {
             }
 
             if !exerciseVolumeBreakdown.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     Text("Volume per Exercise")
                         .font(.headline)
-                        .padding(.top, 8)
+                        .padding(.top, Theme.Spacing.sm)
 
                     ForEach(exerciseVolumeBreakdown, id: \.exercise.id) { item in
                         VStack(alignment: .leading, spacing: 6) {
@@ -252,12 +255,11 @@ struct WorkoutHistoryDetailView: View {
                             ProgressView(value: item.volume, total: totalMovedWeight)
                                 .tint(.purple)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, Theme.Spacing.xs)
                     }
                 }
-                .padding()
-                .background(Color.purple.opacity(0.1))
-                .cornerRadius(12)
+                .padding(Theme.Spacing.lg)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
             }
         }
     }
@@ -265,14 +267,13 @@ struct WorkoutHistoryDetailView: View {
     // MARK: - Analyses Section
 
     private var analysesSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text("Analysis")
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.system(.title2, design: .rounded, weight: .bold))
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 if !personalRecords.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                         Label {
                             Text("Personal Records")
                                 .font(.headline)
@@ -286,21 +287,19 @@ struct WorkoutHistoryDetailView: View {
                                 Text(pr.exercise.name)
                                     .font(.subheadline)
                                 Spacer()
-                                Text(String(format: "%.1f kg × %d", pr.weight, pr.reps))
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
+                                Text(String(format: "%.1f kg x %d", pr.weight, pr.reps))
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
                                     .foregroundStyle(.orange)
                             }
                             .padding(.leading, 28)
                         }
                     }
-                    .padding()
-                    .background(Color.yellow.opacity(0.1))
-                    .cornerRadius(12)
+                    .padding(Theme.Spacing.lg)
+                    .background(Color.yellow.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                 }
 
                 if let comparison = previousWorkoutComparison {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                         Label {
                             Text("Comparison to Previous")
                                 .font(.headline)
@@ -334,9 +333,8 @@ struct WorkoutHistoryDetailView: View {
                         }
                         .padding(.leading, 28)
                     }
-                    .padding()
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(12)
+                    .padding(Theme.Spacing.lg)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                 }
 
                 performanceInsights
@@ -345,7 +343,7 @@ struct WorkoutHistoryDetailView: View {
     }
 
     private var performanceInsights: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Label {
                 Text("Insights")
                     .font(.headline)
@@ -354,9 +352,9 @@ struct WorkoutHistoryDetailView: View {
                     .foregroundStyle(.orange)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 ForEach(insights, id: \.self) { insight in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: Theme.Spacing.sm) {
                         Image(systemName: "circle.fill")
                             .font(.system(size: 6))
                             .foregroundStyle(.secondary)
@@ -370,21 +368,19 @@ struct WorkoutHistoryDetailView: View {
             }
             .padding(.leading, 28)
         }
-        .padding()
-        .background(Color.orange.opacity(0.1))
-        .cornerRadius(12)
+        .padding(Theme.Spacing.lg)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
     }
 
     // MARK: - Timeline Section
 
     private var timelineSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             Text("Timeline")
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.system(.title2, design: .rounded, weight: .bold))
 
             if let orderedExercises = getOrderedExercises() {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     ForEach(Array(orderedExercises.enumerated()), id: \.element.id) { index, exercise in
                         exerciseTimelineView(exercise, number: index + 1)
                     }
@@ -394,7 +390,7 @@ struct WorkoutHistoryDetailView: View {
     }
 
     private func exerciseTimelineView(_ exercise: Exercise, number: Int) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Label {
                     Text("\(number). \(exercise.name)")
@@ -409,8 +405,7 @@ struct WorkoutHistoryDetailView: View {
 
                 if let volume = exerciseVolume(for: exercise) {
                     Text(String(format: "%.0f kg", volume))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(.purple)
                 }
             }
@@ -424,9 +419,8 @@ struct WorkoutHistoryDetailView: View {
                 .padding(.leading, 32)
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
+        .padding(Theme.Spacing.lg)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
     }
 
     private func setTimelineRow(_ workoutSet: WorkoutSet, setNumber: Int) -> some View {
@@ -436,7 +430,7 @@ struct WorkoutHistoryDetailView: View {
                 .foregroundStyle(.secondary)
 
             if let weight = workoutSet.weight, let reps = workoutSet.reps {
-                Text(String(format: "%.1f kg × %d", weight, reps))
+                Text(String(format: "%.1f kg x %d", weight, reps))
                     .font(.caption)
                     .fontWeight(.semibold)
 
@@ -545,7 +539,6 @@ struct WorkoutHistoryDetailView: View {
 
         var records: [PersonalRecord] = []
 
-        // Group sets by exercise
         let exerciseGroups = Dictionary(grouping: sets.compactMap { set -> (Exercise, WorkoutSet)? in
             guard let exercise = set.exercise else { return nil }
             return (exercise, set)
@@ -554,13 +547,11 @@ struct WorkoutHistoryDetailView: View {
         for (exerciseId, exerciseSets) in exerciseGroups {
             guard let exercise = exerciseSets.first?.0 else { continue }
 
-            // Get all historical sets for this exercise (excluding current session)
             let historicalSets = allSessions
                 .filter { $0.id != session.id }
                 .flatMap { $0.sets ?? [] }
                 .filter { $0.exercise?.id == exerciseId }
 
-            // Find max weight × reps in this session
             if let sessionMax = exerciseSets
                 .compactMap({ set -> (weight: Double, reps: Int)? in
                     guard let weight = set.1.weight, let reps = set.1.reps else { return nil }
@@ -568,7 +559,6 @@ struct WorkoutHistoryDetailView: View {
                 })
                 .max(by: { $0.weight * Double($0.reps) < $1.weight * Double($1.reps) }) {
 
-                // Check if this beats historical max
                 let historicalMax = historicalSets
                     .compactMap({ set -> Double? in
                         guard let weight = set.weight, let reps = set.reps else { return nil }
@@ -600,7 +590,6 @@ struct WorkoutHistoryDetailView: View {
     private var previousWorkoutComparison: WorkoutComparison? {
         guard let splitId = session.splitId else { return nil }
 
-        // Find previous workout with same split
         let previousSession = allSessions
             .filter { $0.splitId == splitId && $0.id != session.id && $0.startTime < session.startTime }
             .sorted { $0.startTime > $1.startTime }
@@ -627,7 +616,6 @@ struct WorkoutHistoryDetailView: View {
     private var insights: [String] {
         var insights: [String] = []
 
-        // Workout duration insight
         if let duration = session.endTime?.timeIntervalSince(session.startTime) {
             let minutes = Int(duration / 60)
             if minutes < 30 {
@@ -637,25 +625,18 @@ struct WorkoutHistoryDetailView: View {
             }
         }
 
-        // Volume insight
         if totalMovedWeight > 5000 {
             insights.append("High volume workout - moved over 5 tons")
         }
 
-        // Exercise variety
         if uniqueExerciseCount >= 8 {
             insights.append("Great exercise variety with \(uniqueExerciseCount) different movements")
         }
 
-        // Note: Consistency with targets insight removed - requires split relationship access
-        // which can crash on orphaned data. Could be re-added if exercise targets are stored on WorkoutSet.
-
-        // Personal records
         if !personalRecords.isEmpty {
             insights.append("Set \(personalRecords.count) personal record\(personalRecords.count > 1 ? "s" : "") this workout")
         }
 
-        // Comparison insight
         if let comparison = previousWorkoutComparison {
             let weightDiff = ((totalMovedWeight - comparison.totalWeight) / comparison.totalWeight) * 100
             if weightDiff > 10 {
@@ -744,8 +725,7 @@ struct InfoRow: View {
             Spacer()
 
             Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
         }
     }
 }
@@ -758,7 +738,7 @@ struct StatCard: View {
     var fullWidth: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Image(systemName: icon)
                     .foregroundStyle(color)
@@ -768,17 +748,15 @@ struct StatCard: View {
             }
 
             Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.system(.title2, design: .rounded, weight: .bold))
 
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding()
+        .padding(Theme.Spacing.lg)
         .frame(maxWidth: fullWidth ? .infinity : nil)
-        .background(color.opacity(0.1))
-        .cornerRadius(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
     }
 }
 
@@ -800,9 +778,9 @@ struct ComparisonRow: View {
 
     private var isImprovement: Bool {
         if isDuration {
-            return difference < 0 // Shorter duration is better
+            return difference < 0
         } else {
-            return difference > 0 // More is better
+            return difference > 0
         }
     }
 
@@ -813,7 +791,7 @@ struct ComparisonRow: View {
 
             Spacer()
 
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Spacing.xs) {
                 if abs(percentageChange) >= 1 {
                     Image(systemName: isImprovement ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                         .foregroundStyle(isImprovement ? .green : .red)

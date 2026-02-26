@@ -2,7 +2,7 @@
 //  ActiveSessionView.swift
 //  gym-bro
 //
-//  Created by Moritz Gößl on 12.01.26.
+//  Created by Moritz Goessl on 12.01.26.
 //
 
 import SwiftData
@@ -20,46 +20,41 @@ struct ActiveSessionView: View {
     @State private var showEndSessionAlert = false
     @State private var showSkipConfirmation = false
     @State private var showReplacementPicker = false
-    
+    @State private var setLogged = false
+
     @FocusState private var focusedField: Field?
     enum Field { case weight, reps, duration }
 
     var body: some View {
-        ZStack {
-            // Main content
-            VStack(spacing: 0) {
-                // Top section - Exercise info
-                exerciseHeader
-                    .padding()
-                    .background(Color(.systemBackground))
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(spacing: Theme.Spacing.xxl) {
+                    exerciseHeader
 
-                Divider()
+                    if let exercise = sessionManager.currentExercise {
+                        setHistorySection
 
-                // Middle section - Inputs
-                ScrollView {
-                    VStack(spacing: 20) {
-                        if let exercise = sessionManager.currentExercise {
-                            if exercise.hasTarget {
-                                // Weight/Reps inputs for target-based exercises
-                                weightRepsInputs
-                            } else {
-                                // Duration input for non-target exercises
-                                durationInput
-                            }
+                        if exercise.hasTarget {
+                            weightRepsInputs
+                        } else {
+                            durationInput
                         }
-
-                        // Action buttons
-                        actionButtons
                     }
-                    .padding(.vertical, 20)
                 }
-                .scrollDismissesKeyboard(.interactively)
+                .padding()
+                .padding(.bottom, 200)
             }
+            .scrollDismissesKeyboard(.interactively)
+
+            floatingActionArea
         }
         .navigationTitle("Active Workout")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .navigationDestination(isPresented: $sessionManager.isRestTimerActive) {
+        .navigationDestination(isPresented: Binding(
+            get: { sessionManager.isRestTimerActive },
+            set: { _ in }
+        )) {
             RestTimerView(sessionManager: sessionManager)
         }
         .toolbar {
@@ -112,19 +107,17 @@ struct ActiveSessionView: View {
         }
     }
 
-    // MARK: - View Components
+    // MARK: - Exercise Header
 
     private var exerciseHeader: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Theme.Spacing.md) {
             if let exercise = sessionManager.currentExercise {
-                VStack(spacing: 4) {
+                VStack(spacing: Theme.Spacing.sm) {
                     Text(exercise.name)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
                         .multilineTextAlignment(.center)
 
-                    // Exercise counter and replace button
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.md) {
                         if let progressText = exerciseProgressText {
                             Text(progressText)
                                 .font(.subheadline)
@@ -141,51 +134,47 @@ struct ActiveSessionView: View {
                         }
                     }
 
-                    // Exercise notes
                     if let notes = exercise.notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text(notes)
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-                            .padding(.top, 4)
+                            .padding(.top, Theme.Spacing.xs)
                     }
                 }
 
                 if exercise.hasTarget {
-                    HStack(spacing: 16) {
-                        // Set counter
+                    HStack(spacing: Theme.Spacing.lg) {
                         Label {
                             if let targetSets = exercise.targetSets {
-                                Text(
-                                    "Set \(sessionManager.currentSetNumber) of \(targetSets)"
-                                )
-                                .font(.title3)
-                                .fontWeight(.semibold)
+                                Text("Set \(sessionManager.currentSetNumber) of \(targetSets)")
+                                    .font(.system(.title3, design: .rounded, weight: .semibold))
+                                    .contentTransition(.numericText())
                             } else {
                                 Text("Set \(sessionManager.currentSetNumber)")
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
+                                    .font(.system(.title3, design: .rounded, weight: .semibold))
+                                    .contentTransition(.numericText())
                             }
                         } icon: {
                             Image(systemName: "list.number")
                                 .foregroundStyle(.blue)
                         }
 
-                        // Target info if available
                         Divider()
                             .frame(height: 20)
 
-                    if let targetWeight = exercise.targetWeight,
-                        let minReps = exercise.minReps,
-                        let maxReps = exercise.maxReps
-                    {
-                        Text(
-                            "\(String(format: "%.1f", targetWeight))kg × \(minReps)-\(maxReps)"
-                        )
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        if let targetWeight = exercise.targetWeight,
+                           let minReps = exercise.minReps,
+                           let maxReps = exercise.maxReps
+                        {
+                            Text("\(String(format: "%.1f", targetWeight))kg x \(minReps)-\(maxReps)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    }
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .padding(.horizontal, Theme.Spacing.lg)
+                    .background(.regularMaterial, in: .capsule)
                 }
             } else {
                 Text("No exercise")
@@ -195,161 +184,190 @@ struct ActiveSessionView: View {
         }
     }
 
-    private var weightRepsInputs: some View {
-        VStack(spacing: 16) {
-            // Weight input
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Weight (kg)")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+    // MARK: - Set History
 
-                TextField("0", text: $weight)
-                    .focused($focusedField, equals: .weight)
-                    .keyboardType(.decimalPad)
-                    .font(.system(size: 32, weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, 12)
-                    .padding(.horizontal)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemGray6))
-                    )
-                    .onChange(of: weight) { oldValue, newValue in
-                        // Replace comma with period for German keyboards
-                        weight = newValue.replacingOccurrences(
-                            of: ",",
-                            with: "."
-                        )
+    private var setHistorySection: some View {
+        Group {
+            if let session = sessionManager.activeSession,
+               let currentEx = sessionManager.currentExercise,
+               let sets = session.sets?.filter({ $0.exercise?.id == currentEx.id }),
+               !sets.isEmpty
+            {
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    Text("This Exercise")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(Array(sets.sorted(by: { $0.startTime < $1.startTime }).enumerated()), id: \.element.id) { index, workoutSet in
+                        HStack {
+                            Text("Set \(index + 1)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 50, alignment: .leading)
+
+                            if let w = workoutSet.weight, let r = workoutSet.reps {
+                                Text("\(String(format: "%.1f", w)) kg x \(r)")
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                            } else if let d = workoutSet.duration {
+                                Text("\(d) min")
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                        }
+                        .padding(.vertical, Theme.Spacing.xs)
                     }
+                }
+                .padding(Theme.Spacing.lg)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
             }
-            .padding(.horizontal)
-
-            // Reps input
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Reps")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-
-                TextField("0", text: $reps)
-                    .focused($focusedField, equals: .reps)
-                    .keyboardType(.numberPad)
-                    .font(.system(size: 32, weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, 12)
-                    .padding(.horizontal)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemGray6))
-                    )
-            }
-            .padding(.horizontal)
         }
     }
 
-    private var durationInput: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Duration (minutes)")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+    // MARK: - Weight & Reps Inputs
 
-            TextField("0", text: $duration)
-                .focused($focusedField, equals: .duration)
-                .keyboardType(.numberPad)
-                .font(.system(size: 32, weight: .bold))
-                .multilineTextAlignment(.center)
-                .padding(.vertical, 12)
-                .padding(.horizontal)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemGray6))
-                )
+    private var weightRepsInputs: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            inputField(
+                label: "Weight (kg)",
+                text: $weight,
+                field: .weight,
+                keyboardType: .decimalPad
+            )
+            .onChange(of: weight) { _, newValue in
+                weight = newValue.replacingOccurrences(of: ",", with: ".")
+            }
+
+            inputField(
+                label: "Reps",
+                text: $reps,
+                field: .reps,
+                keyboardType: .numberPad
+            )
         }
         .padding(.horizontal)
     }
 
-    private var actionButtons: some View {
-        VStack(spacing: 12) {
+    private var durationInput: some View {
+        inputField(
+            label: "Duration (minutes)",
+            text: $duration,
+            field: .duration,
+            keyboardType: .numberPad
+        )
+        .padding(.horizontal)
+    }
+
+    private func inputField(label: String, text: Binding<String>, field: Field, keyboardType: UIKeyboardType) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text(label)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            TextField("0", text: text)
+                .focused($focusedField, equals: field)
+                .keyboardType(keyboardType)
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .padding(.vertical, Theme.Spacing.lg)
+                .padding(.horizontal)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
+                .frame(minHeight: Theme.TouchTarget.large)
+        }
+    }
+
+    // MARK: - Floating Action Area
+
+    private var floatingActionArea: some View {
+        VStack(spacing: Theme.Spacing.md) {
             if let exercise = sessionManager.currentExercise {
                 if exercise.hasTarget {
-                    // Target-based exercises: show both buttons with dynamic priority
                     if hasReachedTargetSets {
                         finishExerciseButton(isPrimary: true)
-                        finishSetButton(isPrimary: false)
+                        HStack(spacing: Theme.Spacing.md) {
+                            finishSetButton(isPrimary: false)
+                            skipButton
+                        }
                     } else {
                         finishSetButton(isPrimary: true)
-                        finishExerciseButton(isPrimary: false)
+                        HStack(spacing: Theme.Spacing.md) {
+                            finishExerciseButton(isPrimary: false)
+                            skipButton
+                        }
                     }
-                    
-                    // Skip button
-                    skipButton
                 } else {
-                    // Duration-based exercises: only show Finish Exercise
                     finishExerciseButton(isPrimary: true)
-                    
-                    // Skip button
                     skipButton
                 }
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, Theme.Spacing.xl)
+        .padding(.top, Theme.Spacing.lg)
+        .padding(.bottom, Theme.Spacing.xxxl)
+        .background(.ultraThinMaterial, in: UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xl, topTrailingRadius: Theme.Radius.xl))
     }
 
     private func finishSetButton(isPrimary: Bool) -> some View {
         Button(action: finishSet) {
-            Text("Finish Set")
-                .font(isPrimary ? .title2 : .headline)
-                .fontWeight(isPrimary ? .bold : .semibold)
+            Text("Log Set")
+                .font(isPrimary ? .system(.title2, design: .rounded, weight: .bold) : .system(.headline, design: .rounded, weight: .semibold))
                 .foregroundStyle(isPrimary ? .white : .blue)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, isPrimary ? 20 : 16)
-                .background(
-                    RoundedRectangle(cornerRadius: isPrimary ? 16 : 12)
-                        .fill(
-                            isPrimary
-                                ? AnyShapeStyle(Color.blue.gradient)
-                                : AnyShapeStyle(Color.blue.opacity(0.1))
-                        )
-                )
+                .frame(minHeight: isPrimary ? Theme.TouchTarget.large : Theme.TouchTarget.comfortable)
+                .background {
+                    if isPrimary {
+                        RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                            .fill(Color.blue.gradient)
+                    } else {
+                        RoundedRectangle(cornerRadius: Theme.Radius.md)
+                            .fill(.blue.opacity(0.15))
+                    }
+                }
         }
+        .sensoryFeedback(.impact(weight: .medium), trigger: setLogged)
     }
 
     private func finishExerciseButton(isPrimary: Bool) -> some View {
         Button(action: finishExercise) {
             HStack {
                 Text("Finish Exercise")
-                    .font(isPrimary ? .title2 : .headline)
-                    .fontWeight(isPrimary ? .bold : .semibold)
+                    .font(isPrimary ? .system(.title2, design: .rounded, weight: .bold) : .system(.headline, design: .rounded, weight: .semibold))
                 if !isPrimary {
                     Image(systemName: "arrow.right")
                 }
             }
             .foregroundStyle(isPrimary ? .white : .blue)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, isPrimary ? 20 : 16)
-            .background(
-                RoundedRectangle(cornerRadius: isPrimary ? 16 : 12)
-                    .fill(
-                        isPrimary
-                            ? AnyShapeStyle(Color.blue.gradient)
-                            : AnyShapeStyle(Color.blue.opacity(0.1))
-                    )
-            )
+            .frame(minHeight: isPrimary ? Theme.TouchTarget.large : Theme.TouchTarget.comfortable)
+            .background {
+                if isPrimary {
+                    RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                        .fill(Color.blue.gradient)
+                } else {
+                    RoundedRectangle(cornerRadius: Theme.Radius.md)
+                        .fill(.blue.opacity(0.15))
+                }
+            }
         }
     }
-    
+
     private var skipButton: some View {
         Button(action: {
             showSkipConfirmation = true
         }) {
-            Text(isFirstSet ? "Skip Exercise" : "Skip Remaining Sets")
-                .font(.headline)
-                .fontWeight(.semibold)
+            Text(isFirstSet ? "Skip" : "Skip Rest")
+                .font(.system(.headline, design: .rounded, weight: .semibold))
                 .foregroundStyle(.orange)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .frame(minHeight: Theme.TouchTarget.comfortable)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.orange.opacity(0.1))
+                    RoundedRectangle(cornerRadius: Theme.Radius.md)
+                        .fill(.orange.opacity(0.15))
                 )
         }
     }
@@ -360,36 +378,35 @@ struct ActiveSessionView: View {
         guard let split = sessionManager.currentSplit,
               let exercises = split.exercises,
               let session = sessionManager.activeSession else { return nil }
-        
-        // Count unique exercises with logged sets (excluding current)
+
         let currentExerciseId = sessionManager.currentExercise?.id
         let completedExerciseIds = Set((session.sets ?? [])
             .compactMap { $0.exercise?.id }
             .filter { $0 != currentExerciseId })
-        
+
         let completedCount = completedExerciseIds.count
         let currentNumber = completedCount + 1
-        
+
         return "\(currentNumber)/\(exercises.count)"
     }
 
     private var hasReachedTargetSets: Bool {
         guard let exercise = sessionManager.currentExercise,
-            let targetSets = exercise.targetSets
+              let targetSets = exercise.targetSets
         else {
             return false
         }
         return sessionManager.currentSetNumber >= targetSets
     }
-    
+
     private var isFirstSet: Bool {
         sessionManager.currentSetNumber == 1
     }
-    
+
     private var skipAlertTitle: String {
         isFirstSet ? "Skip Exercise?" : "Skip Remaining Sets?"
     }
-    
+
     private var skipAlertMessage: String {
         isFirstSet
             ? "Are you sure you want to skip this entire exercise? No sets will be logged."
@@ -402,64 +419,55 @@ struct ActiveSessionView: View {
         guard let exercise = sessionManager.currentExercise else { return }
 
         if exercise.hasTarget {
-            // Log weight/reps set
             guard let weightValue = Double(weight),
-                let repsValue = Int(reps),
-                weightValue > 0,
-                repsValue > 0
+                  let repsValue = Int(reps),
+                  weightValue > 0,
+                  repsValue > 0
             else {
                 return
             }
-
             sessionManager.logSet(weight: weightValue, reps: repsValue)
         } else {
-            // Log duration set
             guard let durationValue = Int(duration),
-                durationValue > 0
+                  durationValue > 0
             else {
                 return
             }
-
             sessionManager.logDurationSet(minutes: durationValue)
         }
 
-        // Start the timer and navigate to timer view
+        setLogged.toggle()
         sessionManager.startTimer()
     }
 
     private func finishExercise() {
-        // Log any pending set if values are entered
         if let exercise = sessionManager.currentExercise {
             if exercise.hasTarget {
                 if let weightValue = Double(weight),
-                    let repsValue = Int(reps),
-                    weightValue > 0,
-                    repsValue > 0
+                   let repsValue = Int(reps),
+                   weightValue > 0,
+                   repsValue > 0
                 {
                     sessionManager.logSet(weight: weightValue, reps: repsValue)
                 }
             } else {
                 if let durationValue = Int(duration),
-                    durationValue > 0
+                   durationValue > 0
                 {
                     sessionManager.logDurationSet(minutes: durationValue)
                 }
             }
         }
 
-        // Move to next exercise
         let success = sessionManager.nextExercise()
         if !success {
-            // No more exercises, show completion
             showEndSessionAlert = true
         }
     }
-    
+
     private func skipSets() {
-        // Move to next exercise without logging anything
         let success = sessionManager.nextExercise()
         if !success {
-            // No more exercises, show completion
             showEndSessionAlert = true
         }
     }
@@ -473,7 +481,6 @@ struct ActiveSessionView: View {
         }
 
         if exercise.hasTarget {
-            // Priority: last set for current exercise > target values > empty
             if let lastSet = sessionManager.lastSetForCurrentExercise {
                 weight = String(format: "%.1f", lastSet.weight ?? 0)
                 reps = "\(lastSet.reps ?? 0)"
@@ -494,9 +501,8 @@ struct ActiveSessionView: View {
             }
             duration = ""
         } else {
-            // Duration-based exercise
             if let lastSet = sessionManager.lastSetForCurrentExercise,
-                let lastDuration = lastSet.duration
+               let lastDuration = lastSet.duration
             {
                 duration = "\(lastDuration)"
             } else {
@@ -530,18 +536,19 @@ struct NextExercisePickerView: View {
                             sessionManager.selectNextExercise(exercise)
                             dismiss()
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                                 Text(exercise.name)
                                     .font(.headline)
                                     .foregroundColor(.primary)
-                                
-                                if let target = getTargetString(for: exercise) {
+
+                                if let target = exercise.targetString {
                                     Text(target)
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Theme.Spacing.xs)
+                            .frame(minHeight: Theme.TouchTarget.minimum)
                         }
                     }
                 } header: {
@@ -567,23 +574,6 @@ struct NextExercisePickerView: View {
         }
         .presentationDetents([.medium, .large])
     }
-
-    private func getTargetString(for exercise: Exercise) -> String? {
-        if exercise.hasTarget {
-            var parts: [String] = []
-            if let sets = exercise.targetSets {
-                parts.append("\(sets) sets")
-            }
-            if let min = exercise.minReps, let max = exercise.maxReps {
-                parts.append("\(min)-\(max) reps")
-            }
-            if let weight = exercise.targetWeight {
-                parts.append("@ \(String(format: "%.1f", weight))kg")
-            }
-            return parts.joined(separator: " ")
-        }
-        return nil
-    }
 }
 
 struct ReplacementExercisePickerView: View {
@@ -600,18 +590,19 @@ struct ReplacementExercisePickerView: View {
                                 sessionManager.replaceCurrentExercise(with: exercise)
                                 dismiss()
                             } label: {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                                     Text(exercise.name)
                                         .font(.headline)
                                         .foregroundColor(.primary)
 
-                                    if let target = getTargetString(for: exercise) {
+                                    if let target = exercise.targetString {
                                         Text(target)
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                     }
                                 }
-                                .padding(.vertical, 4)
+                                .padding(.vertical, Theme.Spacing.xs)
+                                .frame(minHeight: Theme.TouchTarget.minimum)
                             }
                         }
                     } header: {
@@ -632,23 +623,6 @@ struct ReplacementExercisePickerView: View {
             }
         }
         .presentationDetents([.medium, .large])
-    }
-
-    private func getTargetString(for exercise: Exercise) -> String? {
-        if exercise.hasTarget {
-            var parts: [String] = []
-            if let sets = exercise.targetSets {
-                parts.append("\(sets) sets")
-            }
-            if let min = exercise.minReps, let max = exercise.maxReps {
-                parts.append("\(min)-\(max) reps")
-            }
-            if let weight = exercise.targetWeight {
-                parts.append("@ \(String(format: "%.1f", weight))kg")
-            }
-            return parts.joined(separator: " ")
-        }
-        return nil
     }
 }
 

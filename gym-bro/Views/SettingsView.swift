@@ -2,63 +2,67 @@
 //  SettingsView.swift
 //  gym-bro
 //
-//  Created by Moritz Gößl on 13.01.26.
+//  Created by Moritz Goessl on 13.01.26.
 //
 
 import SwiftUI
 
 struct SettingsView: View {
-    @StateObject private var settings = Settings.shared
+    @Environment(Settings.self) private var settings
 
     var body: some View {
+        @Bindable var settings = settings
+
         NavigationStack {
             Form {
-                Section("Timer Settings") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Rest Timer Duration")
+                Section("Rest Timer") {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                        Text("Rest Duration")
                             .font(.headline)
-                        
+
                         HStack {
                             Slider(
                                 value: $settings.defaultRestTimerDuration,
-                                in: 30...600,
-                                step: 15
+                                in: Constants.Timer.restDurationRange,
+                                step: Constants.Timer.restDurationStep
                             )
-                            
+                            .tint(.blue)
+
                             Text("\(Int(settings.defaultRestTimerDuration))s")
-                                .font(.title3)
-                                .fontWeight(.semibold)
+                                .font(.system(.title3, design: .rounded, weight: .semibold))
+                                .monospacedDigit()
                                 .frame(width: 50)
                         }
-                        
+
                         Text("Default rest period between sets")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, Theme.Spacing.sm)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Transition Timer Duration")
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                        Text("Transition Duration")
                             .font(.headline)
-                        
+
                         HStack {
                             Slider(
                                 value: $settings.defaultTransitionTimerDuration,
-                                in: 15...300,
-                                step: 15
+                                in: Constants.Timer.transitionDurationRange,
+                                step: Constants.Timer.transitionDurationStep
                             )
-                            
+                            .tint(.blue)
+
                             Text("\(Int(settings.defaultTransitionTimerDuration))s")
-                                .font(.title3)
-                                .fontWeight(.semibold)
+                                .font(.system(.title3, design: .rounded, weight: .semibold))
+                                .monospacedDigit()
                                 .frame(width: 50)
                         }
-                        
+
                         Text("Default time to prepare for next exercise")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, Theme.Spacing.sm)
                 }
 
                 Section("Info") {
@@ -68,11 +72,11 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
 
 #Preview {
     SettingsView()
+        .environment(Settings())
 }

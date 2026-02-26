@@ -30,9 +30,11 @@ struct WorkoutHistoryView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     if !sessions.isEmpty {
                         Button(isEditMode ? "Done" : "Select") {
-                            isEditMode.toggle()
-                            if !isEditMode {
-                                selectedSessions.removeAll()
+                            withAnimation(.spring(response: 0.3)) {
+                                isEditMode.toggle()
+                                if !isEditMode {
+                                    selectedSessions.removeAll()
+                                }
                             }
                         }
                     }
@@ -54,14 +56,13 @@ struct WorkoutHistoryView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Theme.Spacing.xl) {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.system(size: 70))
-                .foregroundStyle(.gray)
+                .foregroundStyle(.tertiary)
 
             Text("No Workouts Yet")
-                .font(.title2)
-                .fontWeight(.semibold)
+                .font(.system(.title2, design: .rounded, weight: .semibold))
 
             Text("Your workout history will appear here")
                 .font(.subheadline)
@@ -74,12 +75,12 @@ struct WorkoutHistoryView: View {
         List {
             if orphanedSessionsCount > 0 {
                 Section {
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.md) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.title3)
                             .foregroundStyle(.orange)
 
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                             Text("\(orphanedSessionsCount) workout\(orphanedSessionsCount > 1 ? "s" : "") need\(orphanedSessionsCount == 1 ? "s" : "") a split assigned")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
@@ -91,7 +92,7 @@ struct WorkoutHistoryView: View {
 
                         Spacer()
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, Theme.Spacing.sm)
                     .listRowBackground(Color.orange.opacity(0.1))
                 }
             }
@@ -100,16 +101,19 @@ struct WorkoutHistoryView: View {
                 Section(header: sectionHeader(for: date)) {
                     ForEach(groupedSessions[date] ?? []) { session in
                         if isEditMode {
-                            HStack(spacing: 12) {
+                            HStack(spacing: Theme.Spacing.md) {
                                 Image(systemName: selectedSessions.contains(session.id) ? "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(selectedSessions.contains(session.id) ? .blue : .gray)
                                     .font(.title2)
+                                    .contentTransition(.symbolEffect(.replace))
 
                                 workoutRow(session)
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                toggleSelection(session)
+                                withAnimation(.spring(response: 0.2)) {
+                                    toggleSelection(session)
+                                }
                             }
                         } else {
                             NavigationLink {
@@ -132,15 +136,14 @@ struct WorkoutHistoryView: View {
                         Image(systemName: "trash")
                         Text("Delete \(selectedSessions.count) workout\(selectedSessions.count > 1 ? "s" : "")")
                     }
-                    .font(.headline)
+                    .font(.system(.headline, design: .rounded))
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.red)
+                    .frame(minHeight: Theme.TouchTarget.comfortable)
+                    .background(Color.red, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                     .foregroundStyle(.white)
-                    .cornerRadius(12)
                 }
                 .padding(.horizontal)
-                .padding(.bottom, 8)
+                .padding(.bottom, Theme.Spacing.sm)
                 .background(.ultraThinMaterial)
             }
         }
@@ -152,15 +155,15 @@ struct WorkoutHistoryView: View {
         let startFormatted = sectionDateFormatter.string(from: weekStart)
         let endFormatted = sectionDateFormatter.string(from: weekEnd)
 
-        return Text("\(startFormatted) – \(endFormatted)")
-            .font(.headline)
+        return Text("\(startFormatted) - \(endFormatted)")
+            .font(.system(.headline, design: .rounded))
             .textCase(.uppercase)
     }
 
     private func workoutRow(_ session: WorkoutSession) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     HStack(spacing: 6) {
                         Text(session.displaySplitName)
                             .font(.headline)
@@ -180,10 +183,9 @@ struct WorkoutHistoryView: View {
                 Spacer()
 
                 if let duration = session.endTime?.timeIntervalSince(session.startTime) {
-                    VStack(alignment: .trailing, spacing: 4) {
+                    VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
                         Text(formatDuration(duration))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
 
                         if let exerciseCount = uniqueExerciseCount(in: session) {
                             Text("\(exerciseCount) exercise\(exerciseCount > 1 ? "s" : "")")
@@ -195,7 +197,7 @@ struct WorkoutHistoryView: View {
             }
 
             if let location = session.location, !location.isEmpty {
-                HStack(spacing: 4) {
+                HStack(spacing: Theme.Spacing.xs) {
                     Image(systemName: "location.fill")
                         .font(.caption)
                     Text(location)
@@ -204,7 +206,7 @@ struct WorkoutHistoryView: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Theme.Spacing.xs)
     }
 
     private var groupedSessions: [Date: [WorkoutSession]] {

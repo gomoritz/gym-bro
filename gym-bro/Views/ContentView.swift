@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  gym-bro
 //
-//  Created by Moritz Gößl on 08.01.26.
+//  Created by Moritz Goessl on 08.01.26.
 //
 
 import SwiftUI
@@ -10,25 +10,21 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
-            SplitListView()
-                .tabItem {
-                    Label("Splits", systemImage: "list.bullet.clipboard")
-                }
-            
-            ExerciseListView()
-                .tabItem {
-                    Label("Exercises", systemImage: "dumbbell.fill")
-                }
+            Tab("Splits", systemImage: "list.bullet.clipboard") {
+                SplitListView()
+            }
 
-            WorkoutHistoryView()
-                .tabItem {
-                    Label("History", systemImage: "clock.arrow.circlepath")
-                }
+            Tab("Exercises", systemImage: "dumbbell.fill") {
+                ExerciseListView()
+            }
 
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
+            Tab("History", systemImage: "clock.arrow.circlepath") {
+                WorkoutHistoryView()
+            }
+
+            Tab("Settings", systemImage: "gear") {
+                SettingsView()
+            }
         }
     }
 }
