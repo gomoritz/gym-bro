@@ -266,7 +266,7 @@ struct WorkoutHistoryView: View {
 
     private var timeFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.timeStyle = .short
+        formatter.dateFormat = "EEEE HH:mm"
         return formatter
     }
 }
