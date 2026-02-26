@@ -19,6 +19,7 @@ struct ActiveSessionView: View {
     @State private var duration: String = ""
     @State private var showEndSessionAlert = false
     @State private var showSkipConfirmation = false
+    @State private var showReplacementPicker = false
     
     @FocusState private var focusedField: Field?
     enum Field { case weight, reps, duration }
@@ -98,6 +99,11 @@ struct ActiveSessionView: View {
         .sheet(isPresented: $sessionManager.isChoosingStartingExercise) {
             NextExercisePickerView(sessionManager: sessionManager, isStartingExercise: true)
         }
+        .sheet(isPresented: $showReplacementPicker, onDismiss: {
+            updateInputDefaults()
+        }) {
+            ReplacementExercisePickerView(sessionManager: sessionManager)
+        }
         .onAppear {
             updateInputDefaults()
         }
@@ -117,11 +123,22 @@ struct ActiveSessionView: View {
                         .fontWeight(.bold)
                         .multilineTextAlignment(.center)
 
-                    // Exercise counter
-                    if let progressText = exerciseProgressText {
-                        Text(progressText)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    // Exercise counter and replace button
+                    HStack(spacing: 12) {
+                        if let progressText = exerciseProgressText {
+                            Text(progressText)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if !sessionManager.categoryAlternatives.isEmpty && isFirstSet {
+                            Button {
+                                showReplacementPicker = true
+                            } label: {
+                                Label("Replace", systemImage: "arrow.triangle.2.circlepath")
+                                    .font(.subheadline)
+                            }
+                        }
                     }
 
                     // Exercise notes
@@ -543,6 +560,72 @@ struct NextExercisePickerView: View {
                         } else {
                             sessionManager.isChoosingNextExercise = false
                         }
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func getTargetString(for exercise: Exercise) -> String? {
+        if exercise.hasTarget {
+            var parts: [String] = []
+            if let sets = exercise.targetSets {
+                parts.append("\(sets) sets")
+            }
+            if let min = exercise.minReps, let max = exercise.maxReps {
+                parts.append("\(min)-\(max) reps")
+            }
+            if let weight = exercise.targetWeight {
+                parts.append("@ \(String(format: "%.1f", weight))kg")
+            }
+            return parts.joined(separator: " ")
+        }
+        return nil
+    }
+}
+
+struct ReplacementExercisePickerView: View {
+    var sessionManager: SessionManager
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let category = sessionManager.currentExercise?.category {
+                    Section {
+                        ForEach(sessionManager.categoryAlternatives) { exercise in
+                            Button {
+                                sessionManager.replaceCurrentExercise(with: exercise)
+                                dismiss()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(exercise.name)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+
+                                    if let target = getTargetString(for: exercise) {
+                                        Text(target)
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    } header: {
+                        Text(category.name)
+                    } footer: {
+                        Text("Replace the current exercise with another from the same category.")
+                    }
+                }
+            }
+            .navigationTitle("Replace Exercise")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
                         dismiss()
                     }
                 }

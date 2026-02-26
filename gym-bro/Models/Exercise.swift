@@ -22,6 +22,8 @@ class Exercise: Identifiable {
     
     var restTimerDurationOverride: TimeInterval?
 
+    var category: ExerciseCategory?
+
     var splits: [Split]?
 
     @Relationship(deleteRule: .cascade, inverse: \WorkoutSet.exercise)

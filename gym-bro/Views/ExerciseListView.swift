@@ -25,6 +25,12 @@ struct ExerciseListView: View {
                             Text(exercise.name)
                                 .font(.headline)
 
+                            if let categoryName = exercise.category?.name {
+                                Text(categoryName)
+                                    .font(.caption)
+                                    .foregroundStyle(.blue)
+                            }
+
                             Text(exercise.splitNames ?? "No splits")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -59,20 +65,25 @@ struct ExerciseListView: View {
 struct ExerciseFormView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
+    @Query(sort: \ExerciseCategory.name) private var categories: [ExerciseCategory]
 
     var exercise: Exercise?
 
     @State private var name = ""
     @State private var notes = ""
+    @State private var selectedCategory: ExerciseCategory?
 
     @State private var hasTarget = true
     @State private var targetSets = 4
     @State private var targetWeight = 10.0
     @State private var minReps = 8
     @State private var maxReps = 12
-    
+
     @State private var hasRestTimerOverride = false
     @State private var restTimerOverride: TimeInterval = 120
+
+    @State private var isAddingCategory = false
+    @State private var newCategoryName = ""
 
     var isEditing: Bool {
         exercise != nil
@@ -85,6 +96,21 @@ struct ExerciseFormView: View {
                 TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(2...)
                 Toggle("Set target", isOn: $hasTarget)
+            }
+
+            Section("Category") {
+                Picker("Category", selection: $selectedCategory) {
+                    Text("None")
+                        .tag(nil as ExerciseCategory?)
+                    ForEach(categories) { category in
+                        Text(category.name)
+                            .tag(category as ExerciseCategory?)
+                    }
+                }
+
+                Button("New Category") {
+                    isAddingCategory = true
+                }
             }
 
             if hasTarget {
@@ -155,16 +181,32 @@ struct ExerciseFormView: View {
             if let exercise = exercise {
                 name = exercise.name
                 notes = exercise.notes ?? ""
+                selectedCategory = exercise.category
                 hasTarget = exercise.hasTarget
                 targetWeight = exercise.targetWeight ?? 10.0
                 targetSets = exercise.targetSets ?? 4
                 minReps = exercise.minReps ?? 8
                 maxReps = exercise.maxReps ?? 12
-                
+
                 if let override = exercise.restTimerDurationOverride {
                     hasRestTimerOverride = true
                     restTimerOverride = override
                 }
+            }
+        }
+        .alert("New Category", isPresented: $isAddingCategory) {
+            TextField("Category name", text: $newCategoryName)
+            Button("Cancel", role: .cancel) {
+                newCategoryName = ""
+            }
+            Button("Add") {
+                let trimmed = newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    let category = ExerciseCategory(name: trimmed)
+                    modelContext.insert(category)
+                    selectedCategory = category
+                }
+                newCategoryName = ""
             }
         }
     }
@@ -174,6 +216,7 @@ struct ExerciseFormView: View {
             // Update existing
             exercise.name = name
             exercise.notes = !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil
+            exercise.category = selectedCategory
             exercise.targetWeight = hasTarget ? targetWeight : nil
             exercise.targetSets = hasTarget ? targetSets : nil
             exercise.minReps = hasTarget ? minReps : nil
@@ -190,6 +233,7 @@ struct ExerciseFormView: View {
                 maxReps: hasTarget ? maxReps : nil,
                 restTimerDurationOverride: hasRestTimerOverride ? restTimerOverride : nil
             )
+            newExercise.category = selectedCategory
             modelContext.insert(newExercise)
         }
         

@@ -13,6 +13,7 @@ struct GymBroApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Exercise.self, Split.self, WorkoutSession.self, WorkoutSet.self,
+            ExerciseCategory.self,
         ])
         let modelConfiguration = ModelConfiguration(
             schema: schema,

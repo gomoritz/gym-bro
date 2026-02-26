@@ -26,6 +26,7 @@ class SessionManager: Identifiable, Hashable {
     
     var isChoosingNextExercise: Bool = false
     var isChoosingStartingExercise: Bool = false
+    var isChoosingReplacement: Bool = false
     
     private var modelContext: ModelContext?
     private var timer: Timer?
@@ -99,6 +100,15 @@ class SessionManager: Identifiable, Hashable {
         }
     }
     
+    var categoryAlternatives: [Exercise] {
+        guard let exercise = currentExercise,
+              let category = exercise.category,
+              let exercises = category.exercises else {
+            return []
+        }
+        return exercises.filter { $0.id != exercise.id }
+    }
+
     // MARK: - Session Management
     
     func startSession(for split: Split, context: ModelContext) {
@@ -271,6 +281,25 @@ class SessionManager: Identifiable, Hashable {
         }
         
         return false
+    }
+
+    func replaceCurrentExercise(with replacement: Exercise) {
+        guard let split = currentSplit,
+              split.exercises != nil,
+              currentExerciseIndex < split.exercises!.count else {
+            return
+        }
+
+        split.exercises![currentExerciseIndex] = replacement
+        isChoosingReplacement = false
+
+        // Update live activity
+        Task { @MainActor in
+            WorkoutLiveActivityManager.shared.startWorkoutActivity(
+                exerciseName: replacement.name,
+                setNumber: currentSetNumber
+            )
+        }
     }
 
     func selectNextExercise(_ exercise: Exercise) {
