@@ -128,10 +128,12 @@ struct ExerciseFormView: View {
     var exercise: Exercise?
 
     @State private var name = ""
+    @State private var notes = ""
     @State private var selectedCategory: ExerciseCategory?
 
     @State private var hasTarget = true
     @State private var targetSets = 4
+    @State private var targetWeight = 10.0
     @State private var minReps = 8
     @State private var maxReps = 12
 
@@ -154,6 +156,8 @@ struct ExerciseFormView: View {
             Section {
                 TextField("Exercise name", text: $name)
                     .font(.headline)
+                TextField("Notes", text: $notes, axis: .vertical)
+                    .lineLimit(2...)
                 Toggle("Set target", isOn: $hasTarget)
             }
 
@@ -189,6 +193,18 @@ struct ExerciseFormView: View {
                         value: $maxReps,
                         in: minReps...100
                     )
+
+                    VStack {
+                        Stepper(
+                            "**\(String(format: "%.1f", targetWeight)) kg** weight",
+                            value: $targetWeight,
+                            in: 1.0...200.0,
+                            step: 0.5
+                        )
+
+                        Slider(value: $targetWeight, in: 1...200, step: 0.5)
+                            .tint(.blue)
+                    }
                 }
             }
 
@@ -288,8 +304,10 @@ struct ExerciseFormView: View {
         .onAppear {
             if let exercise = exercise {
                 name = exercise.name
+                notes = exercise.notes ?? ""
                 selectedCategory = exercise.category
                 hasTarget = exercise.hasTarget
+                targetWeight = exercise.targetWeight ?? 10.0
                 targetSets = exercise.targetSets ?? 4
                 minReps = exercise.minReps ?? 8
                 maxReps = exercise.maxReps ?? 12
@@ -338,15 +356,18 @@ struct ExerciseFormView: View {
 
     private func addProfile(for location: GymLocation) {
         guard let exercise else { return }
-        _ = WorkoutPersistence.findOrCreateProfile(
+        let profile = WorkoutPersistence.findOrCreateProfile(
             exercise: exercise, location: location, in: modelContext
         )
+        profile.targetWeight = hasTarget ? targetWeight : nil
     }
 
     private func save() {
         if let exercise = exercise {
             exercise.name = name
+            exercise.notes = !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil
             exercise.category = selectedCategory
+            exercise.targetWeight = hasTarget ? targetWeight : nil
             exercise.targetSets = hasTarget ? targetSets : nil
             exercise.minReps = hasTarget ? minReps : nil
             exercise.maxReps = hasTarget ? maxReps : nil
@@ -354,6 +375,8 @@ struct ExerciseFormView: View {
         } else {
             let newExercise = Exercise(
                 name: name,
+                notes: !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil,
+                targetWeight: hasTarget ? targetWeight : nil,
                 targetSets: hasTarget ? targetSets : nil,
                 minReps: hasTarget ? minReps : nil,
                 maxReps: hasTarget ? maxReps : nil,

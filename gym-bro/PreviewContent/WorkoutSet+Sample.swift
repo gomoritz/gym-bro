@@ -16,8 +16,8 @@ extension WorkoutSet {
                 value: -index - 10,
                 to: Date()
             )!,
-            weight: exercise.hasTarget
-                ? Double(Int.random(in: 20...60)) : nil,
+            weight: exercise.hasTargetWeight
+                ? exercise.targetWeight! - Double(Int.random(in: 0...5)) : nil,
             reps: exercise.hasTargetReps
                 ? Int.random(in: exercise.minReps!...exercise.maxReps!) : nil,
             exercise: exercise

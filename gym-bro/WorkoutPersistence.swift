@@ -59,6 +59,12 @@ struct WorkoutPersistence {
         if exercise.history == nil { exercise.history = [] }
         exercise.history?.append(workoutSet)
 
+        if let minReps = exercise.minReps,
+           let targetWeight = exercise.targetWeight,
+           reps >= minReps && weight > targetWeight {
+            exercise.targetWeight = weight
+        }
+
         // Location-aware profile updates
         if let location = session.gymLocation {
             let profile = findOrCreateProfile(exercise: exercise, location: location, in: context)

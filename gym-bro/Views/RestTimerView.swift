@@ -143,7 +143,7 @@ struct RestTimerView: View {
                     .foregroundStyle(.white.opacity(0.9))
             }
 
-            if let notes = exercise.effectiveNotes(for: sessionManager.currentLocation) {
+            if let notes = exercise.notes {
                 Text(notes)
                     .font(.body)
                     .foregroundStyle(.white.opacity(0.8))

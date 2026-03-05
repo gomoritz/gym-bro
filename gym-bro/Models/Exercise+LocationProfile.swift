@@ -11,13 +11,13 @@ extension Exercise {
     }
 
     func effectiveTargetWeight(for location: GymLocation?) -> Double? {
-        guard let location else { return nil }
-        return profile(for: location)?.targetWeight
+        guard let location else { return targetWeight }
+        return profile(for: location)?.targetWeight ?? targetWeight
     }
 
     func effectiveNotes(for location: GymLocation?) -> String? {
-        guard let location else { return nil }
-        return profile(for: location)?.notes
+        guard let location else { return notes }
+        return profile(for: location)?.notes ?? notes
     }
 
     func mostRecentIncrease(excluding location: GymLocation) -> ExerciseLocationProfile? {
