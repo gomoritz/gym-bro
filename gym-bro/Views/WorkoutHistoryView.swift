@@ -196,7 +196,7 @@ struct WorkoutHistoryView: View {
                 }
             }
 
-            if let location = session.location, !location.isEmpty {
+            if let location = session.displayLocationName, !location.isEmpty {
                 HStack(spacing: Theme.Spacing.xs) {
                     Image(systemName: "location.fill")
                         .font(.caption)
@@ -275,5 +275,5 @@ struct WorkoutHistoryView: View {
 
 #Preview {
     WorkoutHistoryView()
-        .modelContainer(for: [WorkoutSession.self, WorkoutSet.self, Exercise.self, Split.self])
+        .modelContainer(for: [WorkoutSession.self, WorkoutSet.self, Exercise.self, Split.self, GymLocation.self, ExerciseLocationProfile.self])
 }

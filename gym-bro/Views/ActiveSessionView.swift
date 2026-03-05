@@ -21,6 +21,7 @@ struct ActiveSessionView: View {
     @State private var showSkipConfirmation = false
     @State private var showReplacementPicker = false
     @State private var setLogged = false
+    @State private var reminderDismissed = false
 
     @FocusState private var focusedField: Field?
     enum Field { case weight, reps, duration }
@@ -32,6 +33,8 @@ struct ActiveSessionView: View {
                     exerciseHeader
 
                     if let exercise = sessionManager.currentExercise {
+                        increaseReminderBanner
+
                         setHistorySection
 
                         if exercise.hasTarget {
@@ -134,7 +137,8 @@ struct ActiveSessionView: View {
                         }
                     }
 
-                    if let notes = exercise.notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let notes = exercise.effectiveNotes(for: sessionManager.currentLocation),
+                       !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text(notes)
                             .font(.body)
                             .foregroundStyle(.secondary)
@@ -163,11 +167,11 @@ struct ActiveSessionView: View {
                         Divider()
                             .frame(height: 20)
 
-                        if let targetWeight = exercise.targetWeight,
+                        if let effectiveWeight = exercise.effectiveTargetWeight(for: sessionManager.currentLocation),
                            let minReps = exercise.minReps,
                            let maxReps = exercise.maxReps
                         {
-                            Text("\(String(format: "%.1f", targetWeight))kg x \(minReps)-\(maxReps)")
+                            Text("\(String(format: "%.1f", effectiveWeight))kg x \(minReps)-\(maxReps)")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -181,6 +185,90 @@ struct ActiveSessionView: View {
                     .font(.title)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    // MARK: - Increase Reminder Banner
+
+    @ViewBuilder
+    private var increaseReminderBanner: some View {
+        if !reminderDismissed,
+           let exercise = sessionManager.currentExercise,
+           let location = sessionManager.currentLocation,
+           let profile = exercise.profile(for: location),
+           !profile.increaseAcknowledged,
+           let sourceProfile = exercise.mostRecentIncrease(excluding: location),
+           let sourceLocation = sourceProfile.location,
+           let newWeight = sourceProfile.targetWeight
+        {
+            let suggestion = WeightRatioEngine.suggestWeight(
+                for: exercise,
+                from: sourceLocation,
+                to: location,
+                newSourceWeight: newWeight,
+                allSessions: []
+            )
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.title3)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Weight increased at \(sourceLocation.name)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+
+                        if let previous = sourceProfile.previousWeight {
+                            Text("\(String(format: "%.1f", previous))kg → \(String(format: "%.1f", newWeight))kg")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+                }
+
+                HStack(spacing: Theme.Spacing.sm) {
+                    Text("Suggested: \(String(format: "%.1f", suggestion.suggestedWeight))kg")
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+
+                    Text("(\(suggestion.confidence.label))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: Theme.Spacing.md) {
+                    Button {
+                        profile.targetWeight = suggestion.suggestedWeight
+                        profile.increaseAcknowledged = true
+                        weight = String(format: "%.1f", suggestion.suggestedWeight)
+                        withAnimation { reminderDismissed = true }
+                    } label: {
+                        Text("Apply \(String(format: "%.1f", suggestion.suggestedWeight))kg")
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Theme.Spacing.sm)
+                            .background(.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                            .foregroundStyle(.orange)
+                    }
+
+                    Button {
+                        profile.increaseAcknowledged = true
+                        withAnimation { reminderDismissed = true }
+                    } label: {
+                        Text("Ignore")
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Theme.Spacing.sm)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(Theme.Spacing.lg)
+            .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
         }
     }
 
@@ -473,6 +561,8 @@ struct ActiveSessionView: View {
     }
 
     private func updateInputDefaults() {
+        reminderDismissed = false
+
         guard let exercise = sessionManager.currentExercise else {
             weight = ""
             reps = ""
@@ -485,8 +575,8 @@ struct ActiveSessionView: View {
                 weight = String(format: "%.1f", lastSet.weight ?? 0)
                 reps = "\(lastSet.reps ?? 0)"
             } else {
-                if let targetWeight = exercise.targetWeight {
-                    weight = String(format: "%.1f", targetWeight)
+                if let effectiveWeight = exercise.effectiveTargetWeight(for: sessionManager.currentLocation) {
+                    weight = String(format: "%.1f", effectiveWeight)
                 } else {
                     weight = ""
                 }

@@ -386,7 +386,7 @@ struct WorkoutTimelineView: View {
 
                 Spacer()
 
-                if let targetWeight = exercise.targetWeight,
+                if let targetWeight = exercise.effectiveTargetWeight(for: sessionManager.currentLocation),
                    let minReps = exercise.minReps,
                    let maxReps = exercise.maxReps {
                     Text("\(String(format: "%.1f", targetWeight))kg x \(minReps)-\(maxReps)")
@@ -413,7 +413,7 @@ struct WorkoutTimelineView: View {
                             .foregroundStyle(.gray)
                     }
 
-                    if let targetWeight = exercise.targetWeight,
+                    if let targetWeight = exercise.effectiveTargetWeight(for: sessionManager.currentLocation),
                        let minReps = exercise.minReps,
                        let maxReps = exercise.maxReps {
                         Text("\(String(format: "%.1f", targetWeight))kg x \(minReps)-\(maxReps)")
@@ -615,5 +615,5 @@ struct WorkoutTimelineView: View {
 #Preview {
     let manager = SessionManager()
     return WorkoutTimelineView(sessionManager: manager)
-        .modelContainer(for: [WorkoutSession.self, WorkoutSet.self, Exercise.self, Split.self])
+        .modelContainer(for: [WorkoutSession.self, WorkoutSet.self, Exercise.self, Split.self, GymLocation.self, ExerciseLocationProfile.self])
 }

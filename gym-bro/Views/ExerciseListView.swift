@@ -123,16 +123,15 @@ struct ExerciseFormView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Query(sort: \ExerciseCategory.name) private var categories: [ExerciseCategory]
+    @Query(sort: \GymLocation.sortOrder) private var locations: [GymLocation]
 
     var exercise: Exercise?
 
     @State private var name = ""
-    @State private var notes = ""
     @State private var selectedCategory: ExerciseCategory?
 
     @State private var hasTarget = true
     @State private var targetSets = 4
-    @State private var targetWeight = 10.0
     @State private var minReps = 8
     @State private var maxReps = 12
 
@@ -141,6 +140,10 @@ struct ExerciseFormView: View {
 
     @State private var isAddingCategory = false
     @State private var newCategoryName = ""
+
+    @State private var editingProfile: ExerciseLocationProfile?
+    @State private var profileWeight = ""
+    @State private var profileNotes = ""
 
     var isEditing: Bool {
         exercise != nil
@@ -151,8 +154,6 @@ struct ExerciseFormView: View {
             Section {
                 TextField("Exercise name", text: $name)
                     .font(.headline)
-                TextField("Notes", text: $notes, axis: .vertical)
-                    .lineLimit(2...)
                 Toggle("Set target", isOn: $hasTarget)
             }
 
@@ -188,17 +189,64 @@ struct ExerciseFormView: View {
                         value: $maxReps,
                         in: minReps...100
                     )
+                }
+            }
 
-                    VStack {
-                        Stepper(
-                            "**\(String(format: "%.1f", targetWeight)) kg** weight",
-                            value: $targetWeight,
-                            in: 1.0...200.0,
-                            step: 0.5
-                        )
+            if isEditing && !locations.isEmpty {
+                Section("Location Profiles") {
+                    if let profiles = exercise?.locationProfiles, !profiles.isEmpty {
+                        ForEach(profiles) { profile in
+                            Button {
+                                editingProfile = profile
+                                profileWeight = profile.targetWeight.map { String(format: "%.1f", $0) } ?? ""
+                                profileNotes = profile.notes ?? ""
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                                        Text(profile.location?.name ?? "Unknown")
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
 
-                        Slider(value: $targetWeight, in: 1...200, step: 0.5)
-                            .tint(.blue)
+                                        HStack(spacing: Theme.Spacing.sm) {
+                                            if let w = profile.targetWeight {
+                                                Text("\(String(format: "%.1f", w))kg")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            if let n = profile.notes, !n.isEmpty {
+                                                Text(n)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.tertiary)
+                                                    .lineLimit(1)
+                                            }
+                                        }
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                        }
+                    }
+
+                    let existingLocationIds = Set((exercise?.locationProfiles ?? []).compactMap { $0.location?.id })
+                    let unlinkedLocations = locations.filter { !existingLocationIds.contains($0.id) }
+
+                    if !unlinkedLocations.isEmpty {
+                        Menu {
+                            ForEach(unlinkedLocations) { location in
+                                Button(location.name) {
+                                    addProfile(for: location)
+                                }
+                            }
+                        } label: {
+                            Label("Add Location Profile", systemImage: "plus.circle.fill")
+                                .font(.headline)
+                                .foregroundStyle(.blue)
+                        }
                     }
                 }
             }
@@ -240,10 +288,8 @@ struct ExerciseFormView: View {
         .onAppear {
             if let exercise = exercise {
                 name = exercise.name
-                notes = exercise.notes ?? ""
                 selectedCategory = exercise.category
                 hasTarget = exercise.hasTarget
-                targetWeight = exercise.targetWeight ?? 10.0
                 targetSets = exercise.targetSets ?? 4
                 minReps = exercise.minReps ?? 8
                 maxReps = exercise.maxReps ?? 12
@@ -269,14 +315,38 @@ struct ExerciseFormView: View {
                 newCategoryName = ""
             }
         }
+        .alert("Edit Profile – \(editingProfile?.location?.name ?? "")", isPresented: Binding(
+            get: { editingProfile != nil },
+            set: { if !$0 { editingProfile = nil } }
+        )) {
+            TextField("Weight (kg)", text: $profileWeight)
+                .keyboardType(.decimalPad)
+            TextField("Notes", text: $profileNotes)
+            Button("Cancel", role: .cancel) {
+                editingProfile = nil
+            }
+            Button("Save") {
+                if let profile = editingProfile {
+                    profile.targetWeight = Double(profileWeight.replacingOccurrences(of: ",", with: "."))
+                    let trimmedNotes = profileNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+                    profile.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
+                }
+                editingProfile = nil
+            }
+        }
+    }
+
+    private func addProfile(for location: GymLocation) {
+        guard let exercise else { return }
+        _ = WorkoutPersistence.findOrCreateProfile(
+            exercise: exercise, location: location, in: modelContext
+        )
     }
 
     private func save() {
         if let exercise = exercise {
             exercise.name = name
-            exercise.notes = !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil
             exercise.category = selectedCategory
-            exercise.targetWeight = hasTarget ? targetWeight : nil
             exercise.targetSets = hasTarget ? targetSets : nil
             exercise.minReps = hasTarget ? minReps : nil
             exercise.maxReps = hasTarget ? maxReps : nil
@@ -284,8 +354,6 @@ struct ExerciseFormView: View {
         } else {
             let newExercise = Exercise(
                 name: name,
-                notes: !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? notes : nil,
-                targetWeight: hasTarget ? targetWeight : nil,
                 targetSets: hasTarget ? targetSets : nil,
                 minReps: hasTarget ? minReps : nil,
                 maxReps: hasTarget ? maxReps : nil,

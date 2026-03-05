@@ -11,12 +11,15 @@ private let logger = Logger(subsystem: "com.gym-bro", category: "WorkoutPersiste
 
 struct WorkoutPersistence {
 
-    static func createSession(for split: Split, at index: Int, in context: ModelContext) -> WorkoutSession {
+    static func createSession(for split: Split, at index: Int, location: GymLocation? = nil, in context: ModelContext) -> WorkoutSession {
         let session = WorkoutSession(
             startTime: Date.now,
             split: split,
             splitName: split.name,
-            splitId: split.id
+            splitId: split.id,
+            gymLocation: location,
+            gymLocationName: location?.name,
+            gymLocationId: location?.id
         )
         context.insert(session)
         save(context: context)
@@ -56,13 +59,51 @@ struct WorkoutPersistence {
         if exercise.history == nil { exercise.history = [] }
         exercise.history?.append(workoutSet)
 
-        if let minReps = exercise.minReps,
-           let targetWeight = exercise.targetWeight,
-           reps >= minReps && weight > targetWeight {
-            exercise.targetWeight = weight
+        // Location-aware profile updates
+        if let location = session.gymLocation {
+            let profile = findOrCreateProfile(exercise: exercise, location: location, in: context)
+
+            if profile.targetWeight == nil {
+                profile.targetWeight = weight
+            } else if let minReps = exercise.minReps,
+                      let profileWeight = profile.targetWeight,
+                      reps >= minReps && weight > profileWeight {
+                profile.previousWeight = profileWeight
+                profile.targetWeight = weight
+                profile.lastWeightIncrease = Date.now
+                profile.increaseAcknowledged = true
+                markOtherProfilesUnacknowledged(for: exercise, excludingLocation: location)
+            }
         }
 
         save(context: context)
+    }
+
+    static func findOrCreateProfile(exercise: Exercise, location: GymLocation, in context: ModelContext) -> ExerciseLocationProfile {
+        if let existing = exercise.profile(for: location) {
+            return existing
+        }
+
+        let profile = ExerciseLocationProfile(
+            exercise: exercise,
+            location: location
+        )
+        context.insert(profile)
+
+        if exercise.locationProfiles == nil { exercise.locationProfiles = [] }
+        exercise.locationProfiles?.append(profile)
+
+        if location.exerciseProfiles == nil { location.exerciseProfiles = [] }
+        location.exerciseProfiles?.append(profile)
+
+        return profile
+    }
+
+    private static func markOtherProfilesUnacknowledged(for exercise: Exercise, excludingLocation location: GymLocation) {
+        guard let profiles = exercise.locationProfiles else { return }
+        for profile in profiles where profile.location?.id != location.id {
+            profile.increaseAcknowledged = false
+        }
     }
 
     static func logDurationSet(

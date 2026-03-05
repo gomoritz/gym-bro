@@ -14,12 +14,14 @@ private let logger = Logger(subsystem: "com.gym-bro", category: "SplitDetailView
 struct SplitDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SessionManager.self) private var sessionManager
+    @Query(sort: \GymLocation.sortOrder) private var locations: [GymLocation]
 
     @Bindable var split: Split
 
     @State private var isPresentingExercisePicker = false
     @State private var isWorkoutActive = false
     @State private var workoutStarted = false
+    @State private var showLocationPicker = false
 
     var body: some View {
         List {
@@ -72,9 +74,7 @@ struct SplitDetailView: View {
             if let exercises = split.exercises, !exercises.isEmpty {
                 Section {
                     Button {
-                        workoutStarted.toggle()
-                        sessionManager.startSession(for: split, context: modelContext)
-                        isWorkoutActive = true
+                        startWorkout()
                     } label: {
                         HStack {
                             Spacer()
@@ -107,6 +107,13 @@ struct SplitDetailView: View {
         .sheet(isPresented: $isPresentingExercisePicker) {
             ExercisePickerView(split: split)
         }
+        .sheet(isPresented: $showLocationPicker) {
+            LocationPickerSheet(locations: locations) { location in
+                workoutStarted.toggle()
+                sessionManager.startSession(for: split, location: location, context: modelContext)
+                isWorkoutActive = true
+            }
+        }
         .onDisappear {
             do {
                 try modelContext.save()
@@ -116,12 +123,69 @@ struct SplitDetailView: View {
         }
     }
 
+    private func startWorkout() {
+        switch locations.count {
+        case 0:
+            workoutStarted.toggle()
+            sessionManager.startSession(for: split, context: modelContext)
+            isWorkoutActive = true
+        case 1:
+            workoutStarted.toggle()
+            sessionManager.startSession(for: split, location: locations[0], context: modelContext)
+            isWorkoutActive = true
+        default:
+            showLocationPicker = true
+        }
+    }
+
     private func removeExerciseFromSplit(offsets: IndexSet) {
         split.exercises?.remove(atOffsets: offsets)
     }
 
     private func moveExercise(from source: IndexSet, to destination: Int) {
         split.exercises?.move(fromOffsets: source, toOffset: destination)
+    }
+}
+
+struct LocationPickerSheet: View {
+    let locations: [GymLocation]
+    let onSelect: (GymLocation) -> Void
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(locations) { location in
+                        Button {
+                            dismiss()
+                            onSelect(location)
+                        } label: {
+                            HStack {
+                                Label(location.name, systemImage: "building.2")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                            }
+                            .padding(.vertical, Theme.Spacing.xs)
+                            .frame(minHeight: Theme.TouchTarget.minimum)
+                        }
+                    }
+                } header: {
+                    Text("Select your gym location")
+                }
+            }
+            .navigationTitle("Location")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

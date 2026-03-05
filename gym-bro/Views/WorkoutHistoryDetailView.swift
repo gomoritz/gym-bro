@@ -171,7 +171,7 @@ struct WorkoutHistoryDetailView: View {
                     InfoRow(icon: "list.bullet.clipboard", label: "Split", value: session.displaySplitName)
                 }
 
-                if let location = session.location, !location.isEmpty {
+                if let location = session.displayLocationName, !location.isEmpty {
                     InfoRow(icon: "location.fill", label: "Location", value: location)
                 }
             }
@@ -818,6 +818,6 @@ struct ComparisonRow: View {
 #Preview {
     NavigationStack {
         WorkoutHistoryDetailView(session: WorkoutSession(startTime: Date(), endTime: Date().addingTimeInterval(3600)))
-            .modelContainer(for: [WorkoutSession.self, WorkoutSet.self, Exercise.self, Split.self])
+            .modelContainer(for: [WorkoutSession.self, WorkoutSet.self, Exercise.self, Split.self, GymLocation.self, ExerciseLocationProfile.self])
     }
 }

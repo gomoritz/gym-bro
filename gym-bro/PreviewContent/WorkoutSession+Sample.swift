@@ -20,8 +20,8 @@ extension WorkoutSession {
                 value: -48,
                 to: Date()
             )!,
-            location: "FIT STAR Erlangen Innenstadt",
-            split: Split.sampleData[2]
+            split: Split.sampleData[2],
+            gymLocationName: "FIT STAR Erlangen Innenstadt"
         ),
         WorkoutSession(
             startTime: Calendar.current.date(
@@ -34,8 +34,8 @@ extension WorkoutSession {
                 value: -24,
                 to: Date()
             )!,
-            location: "FIT STAR Sportsclub Lauf",
-            split: Split.sampleData[1]
+            split: Split.sampleData[1],
+            gymLocationName: "FIT STAR Sportsclub Lauf"
         ),
         WorkoutSession(
             startTime: Calendar.current.date(
@@ -43,8 +43,8 @@ extension WorkoutSession {
                 value: -1,
                 to: Date()
             )!,
-            location: "FIT STAR Sportsclub Lauf",
-            split: Split.sampleData[0]
+            split: Split.sampleData[0],
+            gymLocationName: "FIT STAR Sportsclub Lauf"
         ),
     ]
 }

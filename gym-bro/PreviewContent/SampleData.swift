@@ -12,7 +12,7 @@ struct SampleData: PreviewModifier {
     static func makeSharedContext() async throws -> ModelContainer {
         let schema = Schema([
             Exercise.self, Split.self, WorkoutSession.self, WorkoutSet.self,
-            ExerciseCategory.self,
+            ExerciseCategory.self, GymLocation.self, ExerciseLocationProfile.self,
         ])
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: configuration)
@@ -20,6 +20,7 @@ struct SampleData: PreviewModifier {
         ExerciseCategory.sampleData.forEach { container.mainContext.insert($0) }
         Exercise.sampleData.forEach { container.mainContext.insert($0) }
         Split.sampleData.forEach { container.mainContext.insert($0) }
+        GymLocation.sampleData.forEach { container.mainContext.insert($0) }
         WorkoutSession.sampleData.forEach { container.mainContext.insert($0) }
         WorkoutSet.sampleData.forEach { container.mainContext.insert($0) }
 

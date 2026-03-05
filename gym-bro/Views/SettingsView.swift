@@ -65,6 +65,12 @@ struct SettingsView: View {
                     .padding(.vertical, Theme.Spacing.sm)
                 }
 
+                Section("Locations") {
+                    NavigationLink("Manage Locations") {
+                        GymLocationListView()
+                    }
+                }
+
                 Section("Info") {
                     Text("Rest timer duration can be customized per exercise in the exercise settings. Transition timer is always set to the default duration above.")
                         .font(.caption)

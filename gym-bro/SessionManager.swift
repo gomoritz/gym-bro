@@ -26,6 +26,7 @@ class SessionManager: Identifiable, Hashable {
     var currentExerciseIndex: Int = 0
     var transitionToExercise: Exercise?
     var activeSession: WorkoutSession?
+    var currentLocation: GymLocation?
 
     var isChoosingNextExercise: Bool = false
     var isChoosingStartingExercise: Bool = false
@@ -117,8 +118,9 @@ class SessionManager: Identifiable, Hashable {
         setupTimerCallbacks()
     }
 
-    func startSession(for split: Split, context: ModelContext) {
+    func startSession(for split: Split, location: GymLocation? = nil, context: ModelContext) {
         self.pendingSplit = split
+        self.currentLocation = location
         self.modelContext = context
 
         if let exercises = split.exercises, exercises.count > 1 {
@@ -135,7 +137,7 @@ class SessionManager: Identifiable, Hashable {
         self.currentExerciseIndex = index
         self.transitionToExercise = nil
 
-        let session = WorkoutPersistence.createSession(for: split, at: index, in: context)
+        let session = WorkoutPersistence.createSession(for: split, at: index, location: currentLocation, in: context)
         self.activeSession = session
         self.pendingSplit = nil
 
@@ -262,6 +264,7 @@ class SessionManager: Identifiable, Hashable {
         currentSplit = nil
         currentExerciseIndex = 0
         transitionToExercise = nil
+        currentLocation = nil
 
         if isRestTimerActive {
             toggleTimer()
@@ -303,8 +306,8 @@ class SessionManager: Identifiable, Hashable {
 
         // Update live activity
         if let transition = transitionToExercise {
-            let target = transition.targetString
-            let notes = transition.notes
+            let target = transition.targetString(for: currentLocation)
+            let notes = transition.effectiveNotes(for: currentLocation)
             Task { @MainActor in
                 WorkoutLiveActivityManager.shared.startTransitionTimer(
                     nextExerciseName: transition.name,
@@ -364,8 +367,8 @@ class SessionManager: Identifiable, Hashable {
                 if let transition = self.transitionToExercise {
                     WorkoutLiveActivityManager.shared.setTransitionTimerExpired(
                         nextExerciseName: transition.name,
-                        target: transition.targetString,
-                        notes: transition.notes
+                        target: transition.targetString(for: self.currentLocation),
+                        notes: transition.effectiveNotes(for: self.currentLocation)
                     )
                 } else if let exercise = self.currentExercise {
                     WorkoutLiveActivityManager.shared.setRestTimerExpired(
