@@ -137,7 +137,7 @@ struct RestTimerView: View {
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
 
-            if let target = exercise.targetString {
+            if let target = exercise.targetString(for: sessionManager.currentLocation) {
                 Text(target)
                     .font(.headline)
                     .foregroundStyle(.white.opacity(0.9))
@@ -169,7 +169,7 @@ struct RestTimerView: View {
                     .contentTransition(.numericText())
             }
 
-            if let target = exercise.targetString {
+            if let target = exercise.targetString(for: sessionManager.currentLocation) {
                 Text(target)
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.8))
