@@ -14,6 +14,8 @@ private let logger = Logger(subsystem: "com.gym-bro", category: "ExerciseListVie
 struct ExerciseListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
+    @Query(filter: #Predicate<WorkoutSession> { $0.endTime == nil })
+    private var activeSessions: [WorkoutSession]
 
     @State private var isPresentingAddSheet = false
     @State private var searchText = ""
@@ -26,6 +28,10 @@ struct ExerciseListView: View {
             $0.name.localizedCaseInsensitiveContains(searchText) ||
             ($0.category?.name.localizedCaseInsensitiveContains(searchText) ?? false)
         }
+    }
+
+    private var activeExerciseIDs: Set<UUID> {
+        Set(activeSessions.flatMap { $0.split?.exercises ?? [] }.map { $0.id })
     }
 
     var body: some View {
@@ -105,18 +111,21 @@ struct ExerciseListView: View {
                     }
                     .padding(.vertical, Theme.Spacing.xs)
                 }
+                .swipeActions(edge: .trailing) {
+                    if !activeExerciseIDs.contains(exercise.id) {
+                        Button(role: .destructive) {
+                            withAnimation {
+                                modelContext.delete(exercise)
+                            }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
             }
-            .onDelete(perform: deleteExercises)
         }
     }
 
-    private func deleteExercises(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(filteredExercises[index])
-            }
-        }
-    }
 }
 
 struct ExerciseFormView: View {

@@ -20,6 +20,7 @@ struct ActiveSessionView: View {
     @State private var showEndSessionAlert = false
     @State private var showSkipConfirmation = false
     @State private var showReplacementPicker = false
+    @State private var showExerciseEditor = false
     @State private var setLogged = false
     @State private var reminderDismissed = false
 
@@ -102,6 +103,13 @@ struct ActiveSessionView: View {
         }) {
             ReplacementExercisePickerView(sessionManager: sessionManager)
         }
+        .sheet(isPresented: $showExerciseEditor, onDismiss: {
+            updateInputDefaults()
+        }) {
+            NavigationStack {
+                ExerciseFormView(exercise: sessionManager.currentExercise)
+            }
+        }
         .onAppear {
             updateInputDefaults()
         }
@@ -125,6 +133,13 @@ struct ActiveSessionView: View {
                             Text(progressText)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                        }
+
+                        Button {
+                            showExerciseEditor = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                                .font(.subheadline)
                         }
 
                         if !sessionManager.categoryAlternatives.isEmpty && isFirstSet {
