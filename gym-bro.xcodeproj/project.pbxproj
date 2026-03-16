@@ -66,6 +66,25 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8E3A5BB72F68AEB200A4C4D6 /* Exceptions for "gym-bro" folder in "gym-bro Watch" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Constants.swift,
+				Models/Exercise.swift,
+				"Models/Exercise+LocationProfile.swift",
+				"Models/Exercise+TargetString.swift",
+				Models/ExerciseCategory.swift,
+				Models/ExerciseLocationProfile.swift,
+				Models/GymLocation.swift,
+				Models/Split.swift,
+				Models/WorkoutSession.swift,
+				Models/WorkoutSet.swift,
+				Settings.swift,
+				Theme.swift,
+				WorkoutPersistence.swift,
+			);
+			target = AA0001032F30000000000003 /* gym-bro Watch */;
+		};
 		8E4A86682F15627300F77298 /* Exceptions for "RestTimerWidget" folder in "RestTimerWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -102,6 +121,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				8ECE625C2F0FF321009C2BD4 /* Exceptions for "gym-bro" folder in "gym-bro" target */,
+				8E3A5BB72F68AEB200A4C4D6 /* Exceptions for "gym-bro" folder in "gym-bro Watch" target */,
 			);
 			path = "gym-bro";
 			sourceTree = "<group>";
