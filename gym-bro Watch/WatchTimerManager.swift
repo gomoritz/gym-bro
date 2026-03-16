@@ -1,15 +1,13 @@
 //
-//  TimerManager.swift
-//  gym-bro
+//  WatchTimerManager.swift
+//  gym-bro Watch
 //
 
 import Foundation
-#if os(iOS)
-import AudioToolbox
-#endif
+import WatchKit
 
 @Observable
-class TimerManager {
+class WatchTimerManager {
     var isActive: Bool = false
     var duration: TimeInterval = Constants.Timer.defaultRestDuration
     var timeRemaining: TimeInterval = Constants.Timer.defaultRestDuration
@@ -18,8 +16,6 @@ class TimerManager {
     private var timer: Timer?
     private var endTime: Date?
 
-    // Callbacks for live activity updates (set by SessionManager)
-    var onTimerTick: (() -> Void)?
     var onTimerExpired: (() -> Void)?
 
     func start(duration: TimeInterval) {
@@ -41,9 +37,6 @@ class TimerManager {
                 self.timer = nil
                 self.timeRemaining = 0
                 self.isExpired = true
-                #if os(iOS)
-                AudioServicesPlayAlertSound(SystemSoundID(kSystemSoundID_Vibrate))
-                #endif
                 self.onTimerExpired?()
             }
         }

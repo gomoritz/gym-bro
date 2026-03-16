@@ -1,25 +1,22 @@
 //
-//  SessionManager.swift
-//  gym-bro
-//
-//  Created by Moritz Goessl on 12.01.26.
+//  WatchSessionManager.swift
+//  gym-bro Watch
 //
 
 import Foundation
 import SwiftData
-import UIKit
-import WatchConnectivity
+import WatchKit
 
 @Observable
-class SessionManager: Identifiable, Hashable {
+class WatchSessionManager: Identifiable {
     let id = UUID()
 
     // MARK: - Dependencies
 
-    let timerManager = TimerManager()
+    let timerManager = WatchTimerManager()
+    let healthKitManager = HealthKitManager()
     private var settings: Settings?
-    private var modelContext: ModelContext?
-    var connectivityManager: WatchConnectivityManager?
+    private(set) var modelContext: ModelContext?
 
     // MARK: - Session State
 
@@ -32,7 +29,6 @@ class SessionManager: Identifiable, Hashable {
 
     var isChoosingNextExercise: Bool = false
     var isChoosingStartingExercise: Bool = false
-    var isChoosingReplacement: Bool = false
 
     // MARK: - Timer Forwarding
 
@@ -104,22 +100,16 @@ class SessionManager: Identifiable, Hashable {
         }
     }
 
-    var categoryAlternatives: [Exercise] {
-        guard let exercise = currentExercise,
-              let category = exercise.category,
-              let exercises = category.exercises else {
-            return []
-        }
-        return exercises.filter { $0.id != exercise.id }
+    // MARK: - Configuration
+
+    func configure(settings: Settings, modelContext: ModelContext) {
+        self.settings = settings
+        self.modelContext = modelContext
+        setupTimerCallbacks()
+        healthKitManager.requestAuthorization()
     }
 
     // MARK: - Session Management
-
-    func configure(settings: Settings, connectivityManager: WatchConnectivityManager? = nil) {
-        self.settings = settings
-        self.connectivityManager = connectivityManager
-        setupTimerCallbacks()
-    }
 
     func startSession(for split: Split, location: GymLocation? = nil, context: ModelContext) {
         self.pendingSplit = split
@@ -144,29 +134,8 @@ class SessionManager: Identifiable, Hashable {
         self.activeSession = session
         self.pendingSplit = nil
 
-        let exerciseName = currentExercise?.name
-        let setNum = currentSetNumber
-
-        print("Starting session with \(split.exercises?.count ?? 0) exercises")
-
-        Task { @MainActor in
-            if let name = exerciseName {
-                WorkoutLiveActivityManager.shared.startWorkoutActivity(
-                    exerciseName: name,
-                    setNumber: setNum
-                )
-            }
-        }
-
-        // Sync to Watch
-        if let session = activeSession {
-            connectivityManager?.sendWorkoutStarted(
-                sessionId: session.id,
-                splitId: split.id,
-                locationId: currentLocation?.id,
-                exerciseIndex: index
-            )
-        }
+        // Start HealthKit workout session
+        healthKitManager.startWorkout()
     }
 
     func logSet(weight: Double, reps: Int) {
@@ -186,15 +155,8 @@ class SessionManager: Identifiable, Hashable {
             in: context
         )
 
-        // Sync to Watch
-        connectivityManager?.sendSetLogged(
-            sessionId: session.id,
-            exerciseId: exercise.id,
-            weight: weight,
-            reps: reps,
-            duration: nil,
-            setNumber: currentSetNumber
-        )
+        // Haptic feedback on set logged
+        WKInterfaceDevice.current().play(.click)
     }
 
     func logDurationSet(minutes: Int) {
@@ -212,6 +174,8 @@ class SessionManager: Identifiable, Hashable {
             wasTimerActive: wasTimerActive,
             in: context
         )
+
+        WKInterfaceDevice.current().play(.click)
     }
 
     func nextExercise() -> Bool {
@@ -235,24 +199,6 @@ class SessionManager: Identifiable, Hashable {
         }
 
         return false
-    }
-
-    func replaceCurrentExercise(with replacement: Exercise) {
-        guard let split = currentSplit,
-              split.exercises != nil,
-              currentExerciseIndex < split.exercises!.count else {
-            return
-        }
-
-        split.exercises![currentExerciseIndex] = replacement
-        isChoosingReplacement = false
-
-        Task { @MainActor in
-            WorkoutLiveActivityManager.shared.startWorkoutActivity(
-                exerciseName: replacement.name,
-                setNumber: currentSetNumber
-            )
-        }
     }
 
     func selectNextExercise(_ exercise: Exercise) {
@@ -281,10 +227,10 @@ class SessionManager: Identifiable, Hashable {
             return
         }
 
-        // Sync to Watch before clearing state
-        connectivityManager?.sendWorkoutEnded(sessionId: session.id)
-
         WorkoutPersistence.endSession(session, split: currentSplit, in: context)
+
+        // End HealthKit workout
+        healthKitManager.endWorkout()
 
         activeSession = nil
         currentSplit = nil
@@ -294,10 +240,6 @@ class SessionManager: Identifiable, Hashable {
 
         if isRestTimerActive {
             toggleTimer()
-        }
-
-        Task { @MainActor in
-            WorkoutLiveActivityManager.shared.endWorkoutActivity()
         }
     }
 
@@ -312,10 +254,6 @@ class SessionManager: Identifiable, Hashable {
     }
 
     func startTimer() {
-        Task { @MainActor in
-            WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
-        }
-
         let duration: TimeInterval
         if transitionToExercise != nil {
             duration = settings?.defaultTransitionTimerDuration ?? Constants.Timer.defaultTransitionDuration
@@ -329,57 +267,17 @@ class SessionManager: Identifiable, Hashable {
         }
 
         timerManager.start(duration: duration)
-
-        // Update live activity
-        if let transition = transitionToExercise {
-            let target = transition.targetString(for: currentLocation)
-            let notes = transition.effectiveNotes(for: currentLocation)
-            Task { @MainActor in
-                WorkoutLiveActivityManager.shared.startTransitionTimer(
-                    nextExerciseName: transition.name,
-                    target: target,
-                    notes: notes,
-                    duration: duration
-                )
-            }
-        } else if let exercise = currentExercise {
-            Task { @MainActor in
-                WorkoutLiveActivityManager.shared.startRestTimer(
-                    currentExerciseName: exercise.name,
-                    currentSetNumber: currentSetNumber,
-                    duration: duration
-                )
-            }
-        }
     }
 
     private func stopTimer() {
         timerManager.stop()
-
         if transitionToExercise != nil {
             transitionToExercise = nil
-        }
-
-        if let exercise = currentExercise {
-            Task { @MainActor in
-                WorkoutLiveActivityManager.shared.updateToIdle(
-                    exerciseName: exercise.name,
-                    setNumber: currentSetNumber
-                )
-            }
         }
     }
 
     func acknowledgeTimerExpiry() {
         if isTimerExpired {
-            if let exercise = currentExercise {
-                Task { @MainActor in
-                    WorkoutLiveActivityManager.shared.acknowledgeExpiredTimer(
-                        exerciseName: exercise.name,
-                        setNumber: currentSetNumber
-                    )
-                }
-            }
             timerManager.acknowledgeExpiry()
         }
     }
@@ -387,32 +285,8 @@ class SessionManager: Identifiable, Hashable {
     // MARK: - Private
 
     private func setupTimerCallbacks() {
-        timerManager.onTimerExpired = { [weak self] in
-            guard let self = self else { return }
-            Task { @MainActor in
-                if let transition = self.transitionToExercise {
-                    WorkoutLiveActivityManager.shared.setTransitionTimerExpired(
-                        nextExerciseName: transition.name,
-                        target: transition.targetString(for: self.currentLocation),
-                        notes: transition.effectiveNotes(for: self.currentLocation)
-                    )
-                } else if let exercise = self.currentExercise {
-                    WorkoutLiveActivityManager.shared.setRestTimerExpired(
-                        currentExerciseName: exercise.name,
-                        currentSetNumber: self.currentSetNumber
-                    )
-                }
-            }
+        timerManager.onTimerExpired = {
+            WKInterfaceDevice.current().play(.notification)
         }
-    }
-
-    // MARK: - Hashable Conformance
-
-    static func == (lhs: SessionManager, rhs: SessionManager) -> Bool {
-        lhs.id == rhs.id
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
     }
 }

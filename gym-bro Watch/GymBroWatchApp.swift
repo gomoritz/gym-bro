@@ -1,16 +1,13 @@
 //
-//  GymBroApp.swift
-//  gym-bro
-//
-//  Created by Moritz Goessl on 08.01.26.
+//  GymBroWatchApp.swift
+//  gym-bro Watch
 //
 
 import SwiftData
 import SwiftUI
-import WatchConnectivity
 
 @main
-struct GymBroApp: App {
+struct GymBroWatchApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Exercise.self, Split.self, WorkoutSession.self, WorkoutSet.self,
@@ -31,31 +28,25 @@ struct GymBroApp: App {
         }
     }()
 
-    @Environment(\.scenePhase) var scenePhase
-    @State private var sessionManager = SessionManager()
+    @State private var watchSessionManager = WatchSessionManager()
     @State private var settings = Settings()
     @State private var connectivityManager = WatchConnectivityManager()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(sessionManager)
+            WatchContentView()
+                .environment(watchSessionManager)
                 .environment(settings)
                 .environment(connectivityManager)
                 .onAppear {
-                    sessionManager.configure(settings: settings, connectivityManager: connectivityManager)
-                    Task { @MainActor in
-                        WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
-                    }
+                    let context = sharedModelContainer.mainContext
+                    watchSessionManager.configure(settings: settings, modelContext: context)
+                    connectivityManager.configure(
+                        sessionManager: watchSessionManager,
+                        modelContext: context
+                    )
                 }
         }
         .modelContainer(sharedModelContainer)
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
-                Task { @MainActor in
-                    sessionManager.acknowledgeTimerExpiry()
-                }
-            }
-        }
     }
 }

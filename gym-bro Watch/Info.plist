@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Gym Bro uses your health data to track heart rate and calories during workouts.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Gym Bro saves your workouts to Apple Health so they count toward your Activity rings.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>workout-processing</string>
+	</array>
+	<key>WKCompanionAppBundleIdentifier</key>
+	<string>me.goessl.gym-bro</string>
+</dict>
+</plist>
