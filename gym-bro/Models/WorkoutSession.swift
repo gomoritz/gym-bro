@@ -10,9 +10,9 @@ import SwiftData
 
 @Model
 class WorkoutSession: Identifiable {
-    var id: UUID
+    var id: UUID = UUID()
 
-    var startTime: Date
+    var startTime: Date = Date.now
     var endTime: Date?
 
     // Enhanced tracking for improved predictions

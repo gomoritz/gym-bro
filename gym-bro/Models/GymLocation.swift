@@ -8,9 +8,9 @@ import SwiftData
 
 @Model
 class GymLocation: Identifiable {
-    var id: UUID
-    var name: String
-    var sortOrder: Int
+    var id: UUID = UUID()
+    var name: String = ""
+    var sortOrder: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \ExerciseLocationProfile.location)
     var exerciseProfiles: [ExerciseLocationProfile]?

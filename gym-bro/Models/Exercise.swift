@@ -10,9 +10,9 @@ import SwiftData
 
 @Model
 class Exercise: Identifiable {
-    var id: UUID
+    var id: UUID = UUID()
 
-    var name: String
+    var name: String = ""
     var notes: String?
 
     var targetWeight: Double?

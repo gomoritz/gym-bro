@@ -8,14 +8,15 @@ import SwiftData
 
 @Model
 class ExerciseLocationProfile: Identifiable {
-    var id: UUID
+    var id: UUID = UUID()
     var targetWeight: Double?
     var notes: String?
     var lastWeightIncrease: Date?
     var previousWeight: Double?
-    var increaseAcknowledged: Bool
+    var increaseAcknowledged: Bool = true
 
     var exercise: Exercise?
+
     var location: GymLocation?
 
     init(

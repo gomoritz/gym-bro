@@ -10,9 +10,9 @@ import SwiftData
 
 @Model
 class WorkoutSet: Identifiable {
-    var id: UUID
+    var id: UUID = UUID()
 
-    var startTime: Date
+    var startTime: Date = Date.now
     var weight: Double?
     var reps: Int?
     var duration: Int? // Duration in minutes for exercises without targets
@@ -28,6 +28,7 @@ class WorkoutSet: Identifiable {
     var wasFailure: Bool?                 // Whether set ended in failure
 
     var exercise: Exercise?
+
     var session: WorkoutSession?
 
     init(

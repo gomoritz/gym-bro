@@ -10,9 +10,9 @@ import SwiftData
 
 @Model
 class ExerciseCategory: Identifiable {
-    var id: UUID
+    var id: UUID = UUID()
 
-    var name: String
+    var name: String = ""
 
     @Relationship(deleteRule: .nullify, inverse: \Exercise.category)
     var exercises: [Exercise]?
