@@ -25,6 +25,12 @@ struct WatchContentView: View {
                 splitListView
             }
         }
+        .sheet(isPresented: Binding(
+            get: { sessionManager.isChoosingStartingExercise },
+            set: { _ in }
+        )) {
+            WatchExercisePickerView(isStartingExercise: true)
+        }
     }
 
     // MARK: - No Data

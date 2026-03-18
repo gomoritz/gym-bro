@@ -43,7 +43,10 @@ struct GymBroApp: App {
                 .environment(settings)
                 .environment(connectivityManager)
                 .onAppear {
+                    let context = sharedModelContainer.mainContext
                     sessionManager.configure(settings: settings, connectivityManager: connectivityManager)
+                    connectivityManager.configure(modelContext: context)
+                    syncSplitsToWatch(context: context)
                     Task { @MainActor in
                         WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
                     }
@@ -54,8 +57,21 @@ struct GymBroApp: App {
             if newPhase == .active {
                 Task { @MainActor in
                     sessionManager.acknowledgeTimerExpiry()
+                    // Re-sync splits whenever app becomes active
+                    syncSplitsToWatch(context: sharedModelContainer.mainContext)
                 }
             }
+        }
+    }
+
+    private func syncSplitsToWatch(context: ModelContext) {
+        do {
+            let splits = try context.fetch(FetchDescriptor<Split>(sortBy: [SortDescriptor(\Split.name)]))
+            let locations = try context.fetch(FetchDescriptor<GymLocation>(sortBy: [SortDescriptor(\GymLocation.sortOrder)]))
+            let categories = try context.fetch(FetchDescriptor<ExerciseCategory>(sortBy: [SortDescriptor(\ExerciseCategory.name)]))
+            connectivityManager.syncSplitsToWatch(splits: splits, locations: locations, categories: categories)
+        } catch {
+            print("[WatchSync] Failed to fetch data for sync: \(error)")
         }
     }
 }

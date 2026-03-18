@@ -164,6 +164,7 @@ class SessionManager: Identifiable, Hashable {
                 sessionId: session.id,
                 splitId: split.id,
                 locationId: currentLocation?.id,
+                exerciseId: currentExercise?.id,
                 exerciseIndex: index
             )
         }

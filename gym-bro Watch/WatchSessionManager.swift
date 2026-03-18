@@ -138,6 +138,19 @@ class WatchSessionManager: Identifiable {
         healthKitManager.startWorkout()
     }
 
+    func startRemoteSession(for split: Split, location: GymLocation?, exerciseIndex: Int, context: ModelContext) {
+        self.modelContext = context
+        self.currentSplit = split
+        self.currentLocation = location
+        self.currentExerciseIndex = exerciseIndex
+        self.transitionToExercise = nil
+
+        let session = WorkoutPersistence.createSession(for: split, at: exerciseIndex, location: location, in: context)
+        self.activeSession = session
+
+        healthKitManager.startWorkout()
+    }
+
     func logSet(weight: Double, reps: Int) {
         guard let session = activeSession,
               let exercise = currentExercise,

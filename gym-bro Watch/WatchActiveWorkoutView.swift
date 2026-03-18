@@ -32,6 +32,7 @@ struct WatchActiveWorkoutView: View {
                 heartRateDisplay
                 weightInput
                 repsInput
+                Spacer().frame(height: 8)
                 actionButtons
             }
             .padding(.horizontal, 4)
@@ -56,12 +57,6 @@ struct WatchActiveWorkoutView: View {
         }
         .sheet(isPresented: $showExercisePicker) {
             WatchExercisePickerView()
-        }
-        .sheet(isPresented: Binding(
-            get: { sessionManager.isChoosingStartingExercise },
-            set: { _ in }
-        )) {
-            WatchExercisePickerView(isStartingExercise: true)
         }
         .sheet(isPresented: Binding(
             get: { sessionManager.isChoosingNextExercise },
@@ -126,8 +121,8 @@ struct WatchActiveWorkoutView: View {
                     $weight,
                     from: 0,
                     through: 500,
-                    by: 2.5,
-                    sensitivity: .medium,
+                    by: 0.5,
+                    sensitivity: .low,
                     isContinuous: false,
                     isHapticFeedbackEnabled: true
                 )
