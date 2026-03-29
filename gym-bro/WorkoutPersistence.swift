@@ -9,9 +9,9 @@ import os
 
 private let logger = Logger(subsystem: "com.gym-bro", category: "WorkoutPersistence")
 
-struct WorkoutPersistence {
+class WorkoutRepository: WorkoutRepositoryProviding {
 
-    static func createSession(for split: Split, at index: Int, location: GymLocation? = nil, in context: ModelContext) -> WorkoutSession {
+    func createSession(for split: Split, at index: Int, location: GymLocation? = nil, in context: ModelContext) -> WorkoutSession {
         let session = WorkoutSession(
             startTime: Date.now,
             split: split,
@@ -26,7 +26,7 @@ struct WorkoutPersistence {
         return session
     }
 
-    static func logWeightSet(
+    func logWeightSet(
         weight: Double,
         reps: Int,
         exercise: Exercise,
@@ -85,7 +85,7 @@ struct WorkoutPersistence {
         save(context: context)
     }
 
-    static func findOrCreateProfile(exercise: Exercise, location: GymLocation, in context: ModelContext) -> ExerciseLocationProfile {
+    func findOrCreateProfile(exercise: Exercise, location: GymLocation, in context: ModelContext) -> ExerciseLocationProfile {
         if let existing = exercise.profile(for: location) {
             return existing
         }
@@ -105,14 +105,14 @@ struct WorkoutPersistence {
         return profile
     }
 
-    private static func markOtherProfilesUnacknowledged(for exercise: Exercise, excludingLocation location: GymLocation) {
+    private func markOtherProfilesUnacknowledged(for exercise: Exercise, excludingLocation location: GymLocation) {
         guard let profiles = exercise.locationProfiles else { return }
         for profile in profiles where profile.location?.id != location.id {
             profile.increaseAcknowledged = false
         }
     }
 
-    static func logDurationSet(
+    func logDurationSet(
         minutes: Int,
         exercise: Exercise,
         session: WorkoutSession,
@@ -146,7 +146,7 @@ struct WorkoutPersistence {
         save(context: context)
     }
 
-    static func endSession(
+    func endSession(
         _ session: WorkoutSession,
         split: Split?,
         in context: ModelContext
@@ -154,37 +154,51 @@ struct WorkoutPersistence {
         session.endTime = Date.now
 
         if let sets = session.sets {
-            var orderSeen: [UUID] = []
-            let sortedSets = sets.sorted { $0.startTime < $1.startTime }
-
-            for set in sortedSets {
-                if let exerciseId = set.exercise?.id, !orderSeen.contains(exerciseId) {
-                    orderSeen.append(exerciseId)
-                }
-            }
-
-            session.actualExerciseOrder = orderSeen.isEmpty ? nil : orderSeen
+            session.actualExerciseOrder = SessionCompletionService.computeExerciseOrder(from: sets)
         }
 
         if let split = split,
            let allExercises = split.exercises,
            let performedOrder = session.actualExerciseOrder {
-            let performedIds = Set(performedOrder)
-            let skippedIds = allExercises
-                .map { $0.id }
-                .filter { !performedIds.contains($0) }
-
-            session.skippedExerciseIds = skippedIds.isEmpty ? nil : skippedIds
+            session.skippedExerciseIds = SessionCompletionService.computeSkippedExercises(
+                allExercises: allExercises,
+                performedOrder: performedOrder
+            )
         }
 
         save(context: context)
     }
 
-    private static func save(context: ModelContext) {
+    func save(context: ModelContext) {
         do {
             try context.save()
         } catch {
             logger.error("Failed to save model context: \(error.localizedDescription)")
         }
+    }
+}
+
+// MARK: - Static convenience for backward compatibility
+enum WorkoutPersistence {
+    private static let shared = WorkoutRepository()
+
+    static func createSession(for split: Split, at index: Int, location: GymLocation? = nil, in context: ModelContext) -> WorkoutSession {
+        shared.createSession(for: split, at: index, location: location, in: context)
+    }
+
+    static func logWeightSet(weight: Double, reps: Int, exercise: Exercise, session: WorkoutSession, previousSet: WorkoutSet?, wasTimerActive: Bool, in context: ModelContext) {
+        shared.logWeightSet(weight: weight, reps: reps, exercise: exercise, session: session, previousSet: previousSet, wasTimerActive: wasTimerActive, in: context)
+    }
+
+    static func logDurationSet(minutes: Int, exercise: Exercise, session: WorkoutSession, previousSet: WorkoutSet?, wasTimerActive: Bool, in context: ModelContext) {
+        shared.logDurationSet(minutes: minutes, exercise: exercise, session: session, previousSet: previousSet, wasTimerActive: wasTimerActive, in: context)
+    }
+
+    static func endSession(_ session: WorkoutSession, split: Split?, in context: ModelContext) {
+        shared.endSession(session, split: split, in: context)
+    }
+
+    static func findOrCreateProfile(exercise: Exercise, location: GymLocation, in context: ModelContext) -> ExerciseLocationProfile {
+        shared.findOrCreateProfile(exercise: exercise, location: location, in: context)
     }
 }

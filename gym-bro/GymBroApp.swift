@@ -41,7 +41,10 @@ struct GymBroApp: App {
                 .environment(sessionManager)
                 .environment(settings)
                 .onAppear {
-                    sessionManager.configure(settings: settings)
+                    sessionManager.configure(
+                        settings: settings,
+                        liveActivityManager: WorkoutLiveActivityManager.shared
+                    )
                     Task { @MainActor in
                         WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
                     }

@@ -578,44 +578,14 @@ struct ActiveSessionView: View {
     private func updateInputDefaults() {
         reminderDismissed = false
 
-        guard let exercise = sessionManager.currentExercise else {
-            weight = ""
-            reps = ""
-            duration = ""
-            return
-        }
-
-        if exercise.hasTarget {
-            if let lastSet = sessionManager.lastSetForCurrentExercise {
-                weight = String(format: "%.1f", lastSet.weight ?? 0)
-                reps = "\(lastSet.reps ?? 0)"
-            } else {
-                if let effectiveWeight = exercise.effectiveTargetWeight(for: sessionManager.currentLocation) {
-                    weight = String(format: "%.1f", effectiveWeight)
-                } else {
-                    weight = ""
-                }
-
-                if let maxReps = exercise.maxReps {
-                    reps = "\(maxReps)"
-                } else if let minReps = exercise.minReps {
-                    reps = "\(minReps)"
-                } else {
-                    reps = ""
-                }
-            }
-            duration = ""
-        } else {
-            if let lastSet = sessionManager.lastSetForCurrentExercise,
-               let lastDuration = lastSet.duration
-            {
-                duration = "\(lastDuration)"
-            } else {
-                duration = ""
-            }
-            weight = ""
-            reps = ""
-        }
+        let defaults = InputDefaultsService.defaults(
+            for: sessionManager.currentExercise,
+            lastSet: sessionManager.lastSetForCurrentExercise,
+            location: sessionManager.currentLocation
+        )
+        weight = defaults.weight
+        reps = defaults.reps
+        duration = defaults.duration
     }
 }
 

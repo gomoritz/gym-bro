@@ -15,7 +15,7 @@ import UserNotifications
 let activityAuthInfo = ActivityAuthorizationInfo()
 
 @MainActor
-class WorkoutLiveActivityManager: NSObject {
+class WorkoutLiveActivityManager: NSObject, LiveActivityProviding {
     static let shared = WorkoutLiveActivityManager()
     
     private var currentActivity: Activity<RestTimerActivityAttributes>?

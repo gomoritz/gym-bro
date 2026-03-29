@@ -210,25 +210,15 @@ struct WorkoutHistoryView: View {
     }
 
     private var groupedSessions: [Date: [WorkoutSession]] {
-        Dictionary(grouping: sessions) { session in
-            startOfWeek(for: session.startTime)
-        }
-    }
-
-    private func startOfWeek(for date: Date) -> Date {
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-        return calendar.date(from: components) ?? date
+        SessionGroupingService.groupByWeek(sessions)
     }
 
     private var orphanedSessionsCount: Int {
-        sessions.filter { $0.split == nil }.count
+        SessionGroupingService.orphanedSessionsCount(in: sessions)
     }
 
     private func uniqueExerciseCount(in session: WorkoutSession) -> Int? {
-        guard let sets = session.sets else { return nil }
-        let uniqueExercises = Set(sets.compactMap { $0.exercise?.id })
-        return uniqueExercises.isEmpty ? nil : uniqueExercises.count
+        SessionGroupingService.uniqueExerciseCount(in: session)
     }
 
     private func toggleSelection(_ session: WorkoutSession) {
@@ -250,14 +240,7 @@ struct WorkoutHistoryView: View {
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
-        let hours = Int(duration) / 3600
-        let minutes = Int(duration) / 60 % 60
-
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
-        }
+        FormatService.formatDuration(duration)
     }
 
     private var sectionDateFormatter: DateFormatter {

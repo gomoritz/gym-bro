@@ -9,21 +9,24 @@ import Foundation
 import SwiftUI
 
 @Observable
-class Settings {
+class Settings: SettingsProviding {
+    private let store: UserDefaultsProviding
+
     var defaultRestTimerDuration: TimeInterval {
         didSet {
-            UserDefaults.standard.set(defaultRestTimerDuration, forKey: "defaultRestTimerDuration")
+            store.set(defaultRestTimerDuration, forKey: "defaultRestTimerDuration")
         }
     }
 
     var defaultTransitionTimerDuration: TimeInterval {
         didSet {
-            UserDefaults.standard.set(defaultTransitionTimerDuration, forKey: "defaultTransitionTimerDuration")
+            store.set(defaultTransitionTimerDuration, forKey: "defaultTransitionTimerDuration")
         }
     }
 
-    init() {
-        self.defaultRestTimerDuration = UserDefaults.standard.object(forKey: "defaultRestTimerDuration") as? TimeInterval ?? Constants.Timer.defaultRestDuration
-        self.defaultTransitionTimerDuration = UserDefaults.standard.object(forKey: "defaultTransitionTimerDuration") as? TimeInterval ?? Constants.Timer.defaultTransitionDuration
+    init(store: UserDefaultsProviding = UserDefaults.standard) {
+        self.store = store
+        self.defaultRestTimerDuration = store.object(forKey: "defaultRestTimerDuration") as? TimeInterval ?? Constants.Timer.defaultRestDuration
+        self.defaultTransitionTimerDuration = store.object(forKey: "defaultTransitionTimerDuration") as? TimeInterval ?? Constants.Timer.defaultTransitionDuration
     }
 }

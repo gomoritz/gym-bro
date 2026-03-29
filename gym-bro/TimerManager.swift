@@ -7,7 +7,7 @@ import Foundation
 import AudioToolbox
 
 @Observable
-class TimerManager {
+class TimerManager: TimerProviding {
     var isActive: Bool = false
     var duration: TimeInterval = Constants.Timer.defaultRestDuration
     var timeRemaining: TimeInterval = Constants.Timer.defaultRestDuration
@@ -19,6 +19,11 @@ class TimerManager {
     // Callbacks for live activity updates (set by SessionManager)
     var onTimerTick: (() -> Void)?
     var onTimerExpired: (() -> Void)?
+
+    // Injectable vibration callback — defaults to system vibrate
+    var onVibrate: (() -> Void)? = {
+        AudioServicesPlayAlertSound(SystemSoundID(kSystemSoundID_Vibrate))
+    }
 
     func start(duration: TimeInterval) {
         self.duration = duration
@@ -39,7 +44,7 @@ class TimerManager {
                 self.timer = nil
                 self.timeRemaining = 0
                 self.isExpired = true
-                AudioServicesPlayAlertSound(SystemSoundID(kSystemSoundID_Vibrate))
+                self.onVibrate?()
                 self.onTimerExpired?()
             }
         }

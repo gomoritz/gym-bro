@@ -15,8 +15,10 @@ class SessionManager: Identifiable, Hashable {
 
     // MARK: - Dependencies
 
-    let timerManager = TimerManager()
-    private var settings: Settings?
+    let timerManager: TimerProviding
+    private let repository: WorkoutRepositoryProviding
+    private var liveActivityManager: LiveActivityProviding?
+    private var settings: SettingsProviding?
     private var modelContext: ModelContext?
 
     // MARK: - Session State
@@ -31,6 +33,18 @@ class SessionManager: Identifiable, Hashable {
     var isChoosingNextExercise: Bool = false
     var isChoosingStartingExercise: Bool = false
     var isChoosingReplacement: Bool = false
+
+    // MARK: - Init
+
+    init(
+        timerManager: TimerProviding = TimerManager(),
+        repository: WorkoutRepositoryProviding = WorkoutRepository(),
+        liveActivityManager: LiveActivityProviding? = nil
+    ) {
+        self.timerManager = timerManager
+        self.repository = repository
+        self.liveActivityManager = liveActivityManager
+    }
 
     // MARK: - Timer Forwarding
 
@@ -113,8 +127,11 @@ class SessionManager: Identifiable, Hashable {
 
     // MARK: - Session Management
 
-    func configure(settings: Settings) {
+    func configure(settings: SettingsProviding, liveActivityManager: LiveActivityProviding? = nil) {
         self.settings = settings
+        if let lam = liveActivityManager {
+            self.liveActivityManager = lam
+        }
         setupTimerCallbacks()
     }
 
@@ -137,7 +154,7 @@ class SessionManager: Identifiable, Hashable {
         self.currentExerciseIndex = index
         self.transitionToExercise = nil
 
-        let session = WorkoutPersistence.createSession(for: split, at: index, location: currentLocation, in: context)
+        let session = repository.createSession(for: split, at: index, location: currentLocation, in: context)
         self.activeSession = session
         self.pendingSplit = nil
 
@@ -148,7 +165,7 @@ class SessionManager: Identifiable, Hashable {
 
         Task { @MainActor in
             if let name = exerciseName {
-                WorkoutLiveActivityManager.shared.startWorkoutActivity(
+                self.liveActivityManager?.startWorkoutActivity(
                     exerciseName: name,
                     setNumber: setNum
                 )
@@ -163,7 +180,7 @@ class SessionManager: Identifiable, Hashable {
             return
         }
         let wasTimerActive = isRestTimerActive || isTimerExpired
-        WorkoutPersistence.logWeightSet(
+        repository.logWeightSet(
             weight: weight,
             reps: reps,
             exercise: exercise,
@@ -181,7 +198,7 @@ class SessionManager: Identifiable, Hashable {
             return
         }
         let wasTimerActive = isRestTimerActive || isTimerExpired
-        WorkoutPersistence.logDurationSet(
+        repository.logDurationSet(
             minutes: minutes,
             exercise: exercise,
             session: session,
@@ -225,9 +242,9 @@ class SessionManager: Identifiable, Hashable {
         isChoosingReplacement = false
 
         Task { @MainActor in
-            WorkoutLiveActivityManager.shared.startWorkoutActivity(
+            self.liveActivityManager?.startWorkoutActivity(
                 exerciseName: replacement.name,
-                setNumber: currentSetNumber
+                setNumber: self.currentSetNumber
             )
         }
     }
@@ -258,7 +275,7 @@ class SessionManager: Identifiable, Hashable {
             return
         }
 
-        WorkoutPersistence.endSession(session, split: currentSplit, in: context)
+        repository.endSession(session, split: currentSplit, in: context)
 
         activeSession = nil
         currentSplit = nil
@@ -271,7 +288,7 @@ class SessionManager: Identifiable, Hashable {
         }
 
         Task { @MainActor in
-            WorkoutLiveActivityManager.shared.endWorkoutActivity()
+            self.liveActivityManager?.endWorkoutActivity()
         }
     }
 
@@ -287,20 +304,15 @@ class SessionManager: Identifiable, Hashable {
 
     func startTimer() {
         Task { @MainActor in
-            WorkoutLiveActivityManager.shared.requestNotificationAuthorization()
+            self.liveActivityManager?.requestNotificationAuthorization()
         }
 
-        let duration: TimeInterval
-        if transitionToExercise != nil {
-            duration = settings?.defaultTransitionTimerDuration ?? Constants.Timer.defaultTransitionDuration
-        } else {
-            if let exercise = currentExercise,
-               let override = exercise.restTimerDurationOverride {
-                duration = override
-            } else {
-                duration = settings?.defaultRestTimerDuration ?? Constants.Timer.defaultRestDuration
-            }
-        }
+        let duration = TimerDurationService.resolveRestDuration(
+            exercise: currentExercise,
+            isTransition: transitionToExercise != nil,
+            defaultRestDuration: settings?.defaultRestTimerDuration ?? Constants.Timer.defaultRestDuration,
+            defaultTransitionDuration: settings?.defaultTransitionTimerDuration ?? Constants.Timer.defaultTransitionDuration
+        )
 
         timerManager.start(duration: duration)
 
@@ -309,7 +321,7 @@ class SessionManager: Identifiable, Hashable {
             let target = transition.targetString(for: currentLocation)
             let notes = transition.effectiveNotes(for: currentLocation)
             Task { @MainActor in
-                WorkoutLiveActivityManager.shared.startTransitionTimer(
+                self.liveActivityManager?.startTransitionTimer(
                     nextExerciseName: transition.name,
                     target: target,
                     notes: notes,
@@ -318,9 +330,9 @@ class SessionManager: Identifiable, Hashable {
             }
         } else if let exercise = currentExercise {
             Task { @MainActor in
-                WorkoutLiveActivityManager.shared.startRestTimer(
+                self.liveActivityManager?.startRestTimer(
                     currentExerciseName: exercise.name,
-                    currentSetNumber: currentSetNumber,
+                    currentSetNumber: self.currentSetNumber,
                     duration: duration
                 )
             }
@@ -336,9 +348,9 @@ class SessionManager: Identifiable, Hashable {
 
         if let exercise = currentExercise {
             Task { @MainActor in
-                WorkoutLiveActivityManager.shared.updateToIdle(
+                self.liveActivityManager?.updateToIdle(
                     exerciseName: exercise.name,
-                    setNumber: currentSetNumber
+                    setNumber: self.currentSetNumber
                 )
             }
         }
@@ -348,9 +360,9 @@ class SessionManager: Identifiable, Hashable {
         if isTimerExpired {
             if let exercise = currentExercise {
                 Task { @MainActor in
-                    WorkoutLiveActivityManager.shared.acknowledgeExpiredTimer(
+                    self.liveActivityManager?.acknowledgeExpiredTimer(
                         exerciseName: exercise.name,
-                        setNumber: currentSetNumber
+                        setNumber: self.currentSetNumber
                     )
                 }
             }
@@ -365,13 +377,13 @@ class SessionManager: Identifiable, Hashable {
             guard let self = self else { return }
             Task { @MainActor in
                 if let transition = self.transitionToExercise {
-                    WorkoutLiveActivityManager.shared.setTransitionTimerExpired(
+                    self.liveActivityManager?.setTransitionTimerExpired(
                         nextExerciseName: transition.name,
                         target: transition.targetString(for: self.currentLocation),
                         notes: transition.effectiveNotes(for: self.currentLocation)
                     )
                 } else if let exercise = self.currentExercise {
-                    WorkoutLiveActivityManager.shared.setRestTimerExpired(
+                    self.liveActivityManager?.setRestTimerExpired(
                         currentExerciseName: exercise.name,
                         currentSetNumber: self.currentSetNumber
                     )

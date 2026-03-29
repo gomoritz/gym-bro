@@ -496,119 +496,41 @@ struct WorkoutTimelineView: View {
     }
 
     private func calculateWorkoutProgress() -> Double? {
-        guard let split = sessionManager.currentSplit,
-              let exercises = split.exercises,
-              !exercises.isEmpty else {
-            return nil
-        }
-
-        let completed = getCompletedExercises()?.count ?? 0
-        let total = exercises.count
-
-        guard total > 0 else { return nil }
-
-        var progress = Double(completed) / Double(total)
-
-        if let currentEx = sessionManager.currentExercise,
-           let targetSets = currentEx.targetSets,
-           targetSets > 0 {
-            let currentSetProgress = Double(sessionManager.currentSetNumber - 1) / Double(targetSets)
-            progress += currentSetProgress / Double(total)
-        }
-
-        return min(progress, 1.0)
+        WorkoutProgressService.calculateWorkoutProgress(
+            split: sessionManager.currentSplit,
+            currentExercise: sessionManager.currentExercise,
+            currentSetNumber: sessionManager.currentSetNumber,
+            completedExercises: getCompletedExercises()
+        )
     }
 
     private func exerciseDuration(for exercise: Exercise) -> TimeInterval? {
-        guard let sets = getSetsForExercise(exercise),
-              sets.count >= 2 else {
-            return nil
-        }
-
-        let firstSet = sets.first!
-        let lastSet = sets.last!
-        return lastSet.startTime.timeIntervalSince(firstSet.startTime)
+        let sets = getSetsForExercise(exercise)
+        return WorkoutProgressService.exerciseDuration(for: exercise, sets: sets)
     }
 
     private func getCompletedExercises() -> [Exercise]? {
-        guard let session = sessionManager.activeSession,
-              let sets = session.sets,
-              let split = sessionManager.currentSplit,
-              let exercises = split.exercises else {
-            return nil
-        }
-
-        let currentExerciseId = sessionManager.currentExercise?.id
-        let completedIds = Set(sets.compactMap { $0.exercise?.id }.filter { $0 != currentExerciseId })
-        let completedExercises = exercises.filter { completedIds.contains($0.id) }
-
-        let sortedSets = sets.sorted { $0.startTime < $1.startTime }
-        var seenIds = Set<UUID>()
-        var orderedExercises: [Exercise] = []
-
-        for set in sortedSets {
-            if let exerciseId = set.exercise?.id,
-               exerciseId != currentExerciseId,
-               !seenIds.contains(exerciseId) {
-                if let exercise = completedExercises.first(where: { $0.id == exerciseId }) {
-                    orderedExercises.append(exercise)
-                }
-                seenIds.insert(exerciseId)
-            }
-        }
-
-        return orderedExercises.isEmpty ? nil : orderedExercises
+        WorkoutProgressService.getCompletedExercises(
+            session: sessionManager.activeSession,
+            split: sessionManager.currentSplit,
+            currentExerciseId: sessionManager.currentExercise?.id
+        )
     }
 
     private func getSetsForExercise(_ exercise: Exercise) -> [WorkoutSet]? {
-        guard let session = sessionManager.activeSession,
-              let sets = session.sets else {
-            return nil
-        }
-
-        let exerciseSets = sets.filter { $0.exercise?.id == exercise.id }
-            .sorted { $0.startTime < $1.startTime }
-        return exerciseSets.isEmpty ? nil : exerciseSets
+        WorkoutProgressService.getSetsForExercise(exercise, in: sessionManager.activeSession)
     }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {
-        let hours = Int(seconds) / 3600
-        let minutes = Int(seconds) / 60 % 60
-
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else if minutes > 0 {
-            return "\(minutes)m"
-        } else {
-            return "< 1m"
-        }
+        FormatService.formatDuration(seconds)
     }
 
     private func formatTimeRemaining(_ seconds: TimeInterval) -> String {
-        let hours = Int(seconds) / 3600
-        let minutes = Int(seconds) / 60 % 60
-
-        if hours > 0 {
-            return "\(hours)h \(minutes)m left"
-        } else if minutes > 0 {
-            return "\(minutes)m left"
-        } else {
-            return "Almost done!"
-        }
+        FormatService.formatTimeRemaining(seconds)
     }
 
     private func timeAgoString(from date: Date) -> String {
-        let interval = Date().timeIntervalSince(date)
-
-        if interval < 60 {
-            return "just now"
-        } else if interval < 3600 {
-            let minutes = Int(interval / 60)
-            return "\(minutes)m ago"
-        } else {
-            let hours = Int(interval / 3600)
-            return "\(hours)h ago"
-        }
+        FormatService.timeAgoString(from: date)
     }
 }
 
