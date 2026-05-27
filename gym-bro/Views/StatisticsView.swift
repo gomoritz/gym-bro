@@ -9,6 +9,22 @@ import Charts
 import SwiftData
 import SwiftUI
 
+// MARK: - Scope
+
+enum StatsScope: String, CaseIterable, Identifiable {
+    case global
+    case exercise
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .global: return "Global"
+        case .exercise: return "Exercise"
+        }
+    }
+}
+
 // MARK: - Time Range
 
 enum StatsTimeRange: String, CaseIterable, Identifiable {
@@ -39,52 +55,172 @@ enum StatsTimeRange: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Main View
+// MARK: - Shared Helpers
+
+enum StatsFormat {
+    static func tonnage(_ kg: Double) -> String {
+        if kg >= 1_000 {
+            return String(format: "%.1f t", kg / 1_000)
+        }
+        return String(format: "%.0f kg", kg)
+    }
+
+    static func tonnageAxis(_ tonnes: Double) -> String {
+        if tonnes >= 1 {
+            return String(format: "%.0ft", tonnes)
+        }
+        return String(format: "%.0fkg", tonnes * 1_000)
+    }
+
+    static func minutes(_ minutes: Double) -> String {
+        let hours = Int(minutes) / 60
+        let mins = Int(minutes) % 60
+        if hours > 0 {
+            return "\(hours)h \(mins)m"
+        }
+        return "\(mins)m"
+    }
+
+    static func weight(_ kg: Double) -> String {
+        if kg.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f kg", kg)
+        }
+        return String(format: "%.1f kg", kg)
+    }
+
+    static func seconds(_ seconds: Double) -> String {
+        if seconds >= 60 {
+            let m = Int(seconds) / 60
+            let s = Int(seconds) % 60
+            return s > 0 ? "\(m)m \(s)s" : "\(m)m"
+        }
+        return String(format: "%.0fs", seconds)
+    }
+}
+
+struct ChartCard<Content: View>: View {
+    let title: String
+    let subtitle: String?
+    let content: Content
+
+    init(_ title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.subtitle = subtitle
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
+                Text(title)
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            content
+        }
+        .padding(Theme.Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+    }
+}
+
+struct StatsNoDataView: View {
+    var body: some View {
+        HStack {
+            Spacer()
+            Text("Not enough data yet")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.vertical, Theme.Spacing.xl)
+    }
+}
+
+// MARK: - Orchestrator
 
 struct StatisticsView: View {
-    @Query(sort: \WorkoutSession.startTime, order: .forward)
-    private var sessions: [WorkoutSession]
-
+    @Query private var sessions: [WorkoutSession]
+    @State private var scope: StatsScope = .global
     @State private var timeRange: StatsTimeRange = .threeMonths
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                if sessions.isEmpty {
-                    emptyStateView
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, Theme.Spacing.xxxl * 2)
-                } else {
-                    VStack(spacing: Theme.Spacing.xxl) {
-                        overviewSection
-                        frequencyHeatmapSection
-                        weeklyVolumeSection
-                        durationTrendSection
-                        dayHourHeatmapSection
+            VStack(spacing: 0) {
+                Picker("Scope", selection: $scope) {
+                    ForEach(StatsScope.allCases) { s in
+                        Text(s.label).tag(s)
                     }
-                    .padding()
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, Theme.Spacing.sm)
+
+                Group {
+                    switch scope {
+                    case .global:
+                        GlobalStatisticsView(timeRange: $timeRange)
+                    case .exercise:
+                        ExerciseStatisticsView(timeRange: $timeRange)
+                    }
                 }
             }
             .navigationTitle("Statistics")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     if !sessions.isEmpty {
-                        Menu {
-                            Picker("Time Range", selection: $timeRange) {
-                                ForEach(StatsTimeRange.allCases) { range in
-                                    Text(range.label).tag(range)
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(timeRange.rawValue)
-                                Image(systemName: "chevron.down")
-                                    .font(.caption2)
-                            }
-                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        }
+                        timeRangeMenu
                     }
                 }
+            }
+        }
+    }
+
+    private var timeRangeMenu: some View {
+        Menu {
+            Picker("Time Range", selection: $timeRange) {
+                ForEach(StatsTimeRange.allCases) { range in
+                    Text(range.label).tag(range)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(timeRange.rawValue)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+        }
+    }
+}
+
+// MARK: - Global Statistics
+
+struct GlobalStatisticsView: View {
+    @Binding var timeRange: StatsTimeRange
+    @Query(sort: \WorkoutSession.startTime, order: .forward)
+    private var sessions: [WorkoutSession]
+
+    var body: some View {
+        ScrollView {
+            if sessions.isEmpty {
+                emptyStateView
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, Theme.Spacing.xxxl * 2)
+            } else {
+                VStack(spacing: Theme.Spacing.xxl) {
+                    overviewSection
+                    frequencyHeatmapSection
+                    weeklyVolumeSection
+                    durationTrendSection
+                    dayHourHeatmapSection
+                }
+                .padding()
             }
         }
     }
@@ -133,13 +269,13 @@ struct StatisticsView: View {
             )
             StatCard(
                 title: "Volume",
-                value: formatTonnage(volume),
+                value: StatsFormat.tonnage(volume),
                 icon: "scalemass.fill",
                 color: Theme.Colors.volume
             )
             StatCard(
                 title: "Avg Duration",
-                value: avgDuration.map(formatMinutes) ?? "—",
+                value: avgDuration.map(StatsFormat.minutes) ?? "—",
                 icon: "clock.fill",
                 color: .orange
             )
@@ -169,7 +305,7 @@ struct StatisticsView: View {
             let maxVolume = volumes.values.map { $0.volume }.max() ?? 1
 
             if weeks.isEmpty {
-                noDataView
+                StatsNoDataView()
             } else {
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -234,7 +370,6 @@ struct StatisticsView: View {
 
     private func heatmapColor(intensity: Double, hasWorkout: Bool) -> Color {
         guard hasWorkout else { return Color.gray.opacity(0.15) }
-        // 0.30 → low workout, 1.0 → max volume day
         return Color.green.opacity(0.30 + intensity * 0.70)
     }
 
@@ -276,13 +411,13 @@ struct StatisticsView: View {
         return weeks
     }
 
-    // MARK: - Weekly Volume (Stacked by Split)
+    // MARK: - Weekly Volume
 
     private var weeklyVolumeSection: some View {
         ChartCard("Weekly Volume", subtitle: "by split") {
             let data = weeklyVolumeBuckets
             if data.isEmpty {
-                noDataView
+                StatsNoDataView()
             } else {
                 Chart(data) { entry in
                     BarMark(
@@ -297,13 +432,13 @@ struct StatisticsView: View {
                         AxisGridLine()
                         AxisValueLabel {
                             if let v = value.as(Double.self) {
-                                Text(formatVolumeAxis(v))
+                                Text(StatsFormat.tonnageAxis(v))
                             }
                         }
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .stride(by: weeklyVolumeXStride)) { value in
+                    AxisMarks(values: .stride(by: weeklyVolumeXStride)) { _ in
                         AxisGridLine()
                         AxisValueLabel(format: .dateTime.month(.abbreviated))
                     }
@@ -317,8 +452,7 @@ struct StatisticsView: View {
     private var weeklyVolumeXStride: Calendar.Component {
         switch timeRange {
         case .threeMonths: return .weekOfYear
-        case .sixMonths: return .month
-        case .year, .all: return .month
+        case .sixMonths, .year, .all: return .month
         }
     }
 
@@ -358,7 +492,7 @@ struct StatisticsView: View {
             let ma = movingAveragePoints(points: points)
 
             if points.isEmpty {
-                noDataView
+                StatsNoDataView()
             } else {
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     durationLegend
@@ -462,7 +596,7 @@ struct StatisticsView: View {
             let maxCount = counts.flatMap { $0 }.max() ?? 0
 
             if maxCount == 0 {
-                noDataView
+                StatsNoDataView()
             } else {
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     GeometryReader { geo in
@@ -472,7 +606,6 @@ struct StatisticsView: View {
                         let cellHeight: CGFloat = 18
 
                         VStack(alignment: .leading, spacing: 2) {
-                            // Hour ticks
                             HStack(spacing: 0) {
                                 Color.clear.frame(width: labelWidth + 4)
                                 ForEach(0..<24, id: \.self) { hour in
@@ -509,7 +642,7 @@ struct StatisticsView: View {
                             }
                         }
                     }
-                    .frame(height: CGFloat(8) * 20 + 4) // 1 header + 7 day rows, ~20pt each
+                    .frame(height: CGFloat(8) * 20 + 4)
 
                     dayHourLegend(maxCount: maxCount)
                 }
@@ -546,7 +679,7 @@ struct StatisticsView: View {
         return counts
     }
 
-    // MARK: - Helpers (Aggregation)
+    // MARK: - Aggregation
 
     private struct DailyVolume {
         let volume: Double
@@ -587,7 +720,7 @@ struct StatisticsView: View {
         return durations.reduce(0, +) / Double(durations.count)
     }
 
-    // MARK: - Helpers (Calendar)
+    // MARK: - Calendar
 
     private var heatmapCalendar: Calendar {
         var cal = Calendar(identifier: .iso8601)
@@ -602,81 +735,11 @@ struct StatisticsView: View {
     }
 
     private static func europeanWeekday(from date: Date) -> Int {
-        // Calendar.weekday: Sun=1, Mon=2, ..., Sat=7 → Mon=0 .. Sun=6
         let raw = Calendar.current.component(.weekday, from: date)
         return (raw + 5) % 7
     }
 
     private static let dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-
-    // MARK: - Helpers (Formatting)
-
-    private func formatTonnage(_ kg: Double) -> String {
-        if kg >= 1_000 {
-            return String(format: "%.1f t", kg / 1_000)
-        }
-        return String(format: "%.0f kg", kg)
-    }
-
-    private func formatVolumeAxis(_ tonnes: Double) -> String {
-        if tonnes >= 1 {
-            return String(format: "%.0ft", tonnes)
-        }
-        return String(format: "%.0fkg", tonnes * 1_000)
-    }
-
-    private func formatMinutes(_ minutes: Double) -> String {
-        let hours = Int(minutes) / 60
-        let mins = Int(minutes) % 60
-        if hours > 0 {
-            return "\(hours)h \(mins)m"
-        }
-        return "\(mins)m"
-    }
-
-    // MARK: - Reusable Chart Card
-
-    private struct ChartCard<Content: View>: View {
-        let title: String
-        let subtitle: String?
-        let content: Content
-
-        init(_ title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) {
-            self.title = title
-            self.subtitle = subtitle
-            self.content = content()
-        }
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
-                    Text(title)
-                        .font(.system(.headline, design: .rounded, weight: .semibold))
-                    if let subtitle = subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                content
-            }
-            .padding(Theme.Spacing.lg)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
-        }
-    }
-
-    private var noDataView: some View {
-        HStack {
-            Spacer()
-            Text("Not enough data yet")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .padding(.vertical, Theme.Spacing.xl)
-    }
 }
 
 #Preview {
