@@ -22,6 +22,10 @@ struct ContentView: View {
                 WorkoutHistoryView()
             }
 
+            Tab("Stats", systemImage: "chart.xyaxis.line") {
+                StatisticsView()
+            }
+
             Tab("Settings", systemImage: "gear") {
                 SettingsView()
             }
