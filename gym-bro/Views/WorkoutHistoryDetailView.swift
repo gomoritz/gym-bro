@@ -23,6 +23,7 @@ struct WorkoutHistoryDetailView: View {
     @State private var isEditMode = false
     @State private var editingSet: WorkoutSet?
     @State private var addingSetForExercise: Exercise?
+    @State private var pickedExercise: Exercise?
     @State private var showAddExercisePicker = false
     @State private var exercisePendingRemoval: Exercise?
     @State private var showTimeEditor = false
@@ -79,9 +80,14 @@ struct WorkoutHistoryDetailView: View {
         .sheet(item: $addingSetForExercise) { exercise in
             SetEditorSheet(mode: addSetMode(for: exercise))
         }
-        .sheet(isPresented: $showAddExercisePicker) {
+        .sheet(isPresented: $showAddExercisePicker, onDismiss: {
+            if let picked = pickedExercise {
+                pickedExercise = nil
+                addingSetForExercise = picked
+            }
+        }) {
             AddExerciseToWorkoutSheet(session: session) { exercise in
-                addingSetForExercise = exercise
+                pickedExercise = exercise
             }
         }
         .confirmationDialog(
