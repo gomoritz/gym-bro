@@ -8,15 +8,15 @@ struct WatchWorkoutView: View {
     @State private var showEndConfirmation = false
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if store.snapshot.isWorkoutActive {
-                    workoutContent
-                } else {
+        Group {
+            if store.snapshot.isWorkoutActive {
+                workoutContent
+            } else {
+                NavigationStack {
                     idleContent
+                        .navigationTitle("Gym Bro")
                 }
             }
-            .navigationTitle("Gym Bro")
         }
         .onAppear {
             store.requestLatestState()
@@ -52,15 +52,17 @@ struct WatchWorkoutView: View {
 
     private var workoutContent: some View {
         ScrollView {
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 if let exercise = store.snapshot.currentExercise {
-                    Text(exercise.name)
-                        .font(.headline)
-                        .multilineTextAlignment(.center)
+                    VStack(spacing: 2) {
+                        Text(exercise.name)
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
 
-                    Text(setDescription(for: exercise))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        Text(setDescription(for: exercise))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
 
                     if let timerKind = store.snapshot.timerKind {
                         TimerCard(store: store, kind: timerKind)
@@ -92,23 +94,32 @@ struct WatchWorkoutView: View {
     }
 
     private var setControls: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Stepper(value: $weight, in: 0...500, step: 0.5) {
-                HStack {
+                VStack(alignment: .leading, spacing: 1) {
                     Text("Weight")
-                    Spacer()
-                    Text(weight, format: .number.precision(.fractionLength(1)))
-                        .monospacedDigit()
-                    Text("kg")
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        Text(weight, format: .number.precision(.fractionLength(1)))
+                            .font(.title3.weight(.semibold))
+                            .monospacedDigit()
+                        Text("kg")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
             Stepper(value: $reps, in: 1...100) {
-                HStack {
+                VStack(alignment: .leading, spacing: 1) {
                     Text("Reps")
-                    Spacer()
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                     Text("\(reps)")
+                        .font(.title3.weight(.semibold))
                         .monospacedDigit()
                 }
             }
