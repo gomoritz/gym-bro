@@ -12,6 +12,11 @@ struct ActiveSessionView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    // Full session history, used by the cross-gym weight-ratio engine so the
+    // increase-reminder banner can compute a location-adjusted suggestion
+    // instead of degrading to the 1:1 "No data" fallback.
+    @Query private var allSessions: [WorkoutSession]
+
     @State var sessionManager: SessionManager
 
     @State private var weight: String = ""
@@ -78,6 +83,7 @@ struct ActiveSessionView: View {
                         Image(systemName: "chart.xyaxis.line")
                             .foregroundStyle(.blue)
                     }
+                    .accessibilityIdentifier("exerciseStatsButton")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -261,7 +267,7 @@ struct ActiveSessionView: View {
                 from: sourceLocation,
                 to: location,
                 newSourceWeight: newWeight,
-                allSessions: []
+                allSessions: allSessions
             )
 
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -571,7 +577,12 @@ struct ActiveSessionView: View {
         else {
             return false
         }
-        return sessionManager.currentSetNumber >= targetSets
+        // currentSetNumber = (logged sets for this exercise) + 1. "Finish
+        // Exercise" should only become the primary action once ALL target sets
+        // are actually logged, i.e. loggedSets >= targetSets, which is
+        // currentSetNumber > targetSets. Using >= would flip to Finish while the
+        // user is still on "Set N of N" (the last set not yet logged).
+        return sessionManager.currentSetNumber > targetSets
     }
 
     private var isFirstSet: Bool {

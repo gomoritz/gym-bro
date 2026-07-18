@@ -205,8 +205,18 @@ struct WorkoutPersistence {
 
     static func deleteSet(_ set: WorkoutSet, in context: ModelContext) {
         let session = set.session
+        let exercise = set.exercise
 
         context.delete(set)
+
+        // context.delete does not synchronously prune the set from the
+        // session.sets / exercise.history relationships (that only happens on
+        // the next save/processing pass), so recomputeDerivedState would
+        // otherwise see the deleted set and keep the exercise marked as
+        // performed. Prune it eagerly. Compare on object identity rather than
+        // WorkoutSet.id (which is not @Attribute(.unique)).
+        session?.sets?.removeAll { $0 === set }
+        exercise?.history?.removeAll { $0 === set }
 
         if let session = session {
             recomputeDerivedState(for: session, in: context)
@@ -241,9 +251,17 @@ struct WorkoutPersistence {
     }
 
     static func removeExercise(_ exercise: Exercise, from session: WorkoutSession, in context: ModelContext) {
-        for set in (session.sets ?? []) where set.exercise?.id == exercise.id {
+        let toDelete = (session.sets ?? []).filter { $0.exercise?.id == exercise.id }
+        for set in toDelete {
             context.delete(set)
         }
+
+        // Prune the deleted sets eagerly so recomputeDerivedState sees the
+        // post-removal set list (see deleteSet for the underlying reason).
+        // Match on persistentModelID rather than WorkoutSet.id (not unique).
+        let removedIDs = Set(toDelete.map { $0.persistentModelID })
+        session.sets?.removeAll { removedIDs.contains($0.persistentModelID) }
+        exercise.history?.removeAll { removedIDs.contains($0.persistentModelID) }
 
         recomputeDerivedState(for: session, in: context)
         save(context: context)
