@@ -37,6 +37,7 @@ class SessionManager: Identifiable, Hashable {
     var isRestTimerActive: Bool { timerManager.isActive }
     var restTimerDuration: TimeInterval { timerManager.duration }
     var restTimeRemaining: TimeInterval { timerManager.timeRemaining }
+    var timerEndDate: Date? { timerManager.projectedEndTime }
     var isTimerExpired: Bool {
         get { timerManager.isExpired }
         set { timerManager.isExpired = newValue }
@@ -116,6 +117,7 @@ class SessionManager: Identifiable, Hashable {
     func configure(settings: Settings) {
         self.settings = settings
         setupTimerCallbacks()
+        WatchWorkoutBridge.shared.connect(to: self)
     }
 
     func startSession(for split: Split, location: GymLocation? = nil, context: ModelContext) {
@@ -153,6 +155,7 @@ class SessionManager: Identifiable, Hashable {
                     setNumber: setNum
                 )
             }
+            WatchWorkoutBridge.shared.startCompanionWorkout()
         }
     }
 
@@ -172,6 +175,7 @@ class SessionManager: Identifiable, Hashable {
             wasTimerActive: wasTimerActive,
             in: context
         )
+        WatchWorkoutBridge.shared.publishCurrentState()
     }
 
     func logDurationSet(minutes: Int) {
@@ -189,6 +193,7 @@ class SessionManager: Identifiable, Hashable {
             wasTimerActive: wasTimerActive,
             in: context
         )
+        WatchWorkoutBridge.shared.publishCurrentState()
     }
 
     func nextExercise() -> Bool {
@@ -229,6 +234,7 @@ class SessionManager: Identifiable, Hashable {
                 exerciseName: replacement.name,
                 setNumber: currentSetNumber
             )
+            WatchWorkoutBridge.shared.publishCurrentState()
         }
     }
 
@@ -246,6 +252,9 @@ class SessionManager: Identifiable, Hashable {
         if isStartingExercise {
             startSessionWithExercise(at: index)
         } else {
+            if isRestTimerActive {
+                stopTimer()
+            }
             currentExerciseIndex = index
             transitionToExercise = exercise
             startTimer()
@@ -272,6 +281,7 @@ class SessionManager: Identifiable, Hashable {
 
         Task { @MainActor in
             WorkoutLiveActivityManager.shared.endWorkoutActivity()
+            WatchWorkoutBridge.shared.publishCurrentState()
         }
     }
 
@@ -303,6 +313,7 @@ class SessionManager: Identifiable, Hashable {
         }
 
         timerManager.start(duration: duration)
+        WatchWorkoutBridge.shared.publishCurrentState()
 
         // Update live activity
         if let transition = transitionToExercise {
@@ -342,6 +353,11 @@ class SessionManager: Identifiable, Hashable {
                 )
             }
         }
+        WatchWorkoutBridge.shared.publishCurrentState()
+    }
+
+    func stopTimerFromCompanion() {
+        stopTimer()
     }
 
     func acknowledgeTimerExpiry() {
@@ -355,6 +371,7 @@ class SessionManager: Identifiable, Hashable {
                 }
             }
             timerManager.acknowledgeExpiry()
+            WatchWorkoutBridge.shared.publishCurrentState()
         }
     }
 
@@ -376,6 +393,7 @@ class SessionManager: Identifiable, Hashable {
                         currentSetNumber: self.currentSetNumber
                     )
                 }
+                WatchWorkoutBridge.shared.publishCurrentState()
             }
         }
     }

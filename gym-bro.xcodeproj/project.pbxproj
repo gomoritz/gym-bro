@@ -13,6 +13,8 @@
 		8E4A86532F15627200F77298 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E4A86522F15627200F77298 /* SwiftUI.framework */; };
 		8E4A86642F15627300F77298 /* RestTimerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8E4A864E2F15627200F77298 /* RestTimerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1000000000000000000A2 /* RestTimerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8E4A864E2F15627200F77298 /* RestTimerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B200000000000000000001 /* GymBroWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B200000000000000000002 /* GymBroWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B200000000000000000015 /* LiquidGlassIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B200000000000000000016 /* LiquidGlassIcon.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +38,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 8E4A864D2F15627200F77298;
 			remoteInfo = RestTimerWidgetExtension;
+		};
+		B200000000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8ECE62472F0FF320009C2BD4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B200000000000000000010;
+			remoteInfo = GymBroWatch;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -62,6 +71,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B200000000000000000004 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				B200000000000000000001 /* GymBroWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -73,6 +93,8 @@
 		8ECE624F2F0FF320009C2BD4 /* gym-bro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "gym-bro.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1000000000000000000A5 /* gym-bro-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "gym-bro-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6CFBBC1C30165D5440DFE7E /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		B200000000000000000002 /* GymBroWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GymBroWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B200000000000000000016 /* LiquidGlassIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = "gym-bro/LiquidGlassIcon.icon"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -97,6 +119,13 @@
 			);
 			target = A1000000000000000000A7 /* gym-bro (iOS Only) */;
 		};
+		B200000000000000000005 /* Exceptions for "GymBroWatch" folder in "GymBroWatch" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				GymBroWatch.entitlements,
+			);
+			target = B200000000000000000010 /* GymBroWatch */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -115,6 +144,19 @@
 				A1000000000000000000AE /* Exceptions for "gym-bro" folder in "gym-bro (iOS Only)" target */,
 			);
 			path = "gym-bro";
+			sourceTree = "<group>";
+		};
+		B200000000000000000006 /* GymBroShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GymBroShared;
+			sourceTree = "<group>";
+		};
+		B200000000000000000007 /* GymBroWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B200000000000000000005 /* Exceptions for "GymBroWatch" folder in "GymBroWatch" target */,
+			);
+			path = GymBroWatch;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -151,6 +193,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B200000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -168,6 +217,9 @@
 			isa = PBXGroup;
 			children = (
 				8ECE62512F0FF320009C2BD4 /* gym-bro */,
+				B200000000000000000006 /* GymBroShared */,
+				B200000000000000000007 /* GymBroWatch */,
+				B200000000000000000016 /* LiquidGlassIcon.icon */,
 				8E4A86542F15627200F77298 /* RestTimerWidget */,
 				8E4A864F2F15627200F77298 /* Frameworks */,
 				8ECE62502F0FF320009C2BD4 /* Products */,
@@ -182,6 +234,7 @@
 				8E4A864E2F15627200F77298 /* RestTimerWidgetExtension.appex */,
 				A1000000000000000000A5 /* gym-bro-iOS.app */,
 				8A9C2C30114DA56CF809897E /* gym-broUITests.xctest */,
+				B200000000000000000002 /* GymBroWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -252,14 +305,17 @@
 				8ECE624C2F0FF320009C2BD4 /* Frameworks */,
 				8ECE624D2F0FF320009C2BD4 /* Resources */,
 				8E4A86692F15627300F77298 /* Embed Foundation Extensions */,
+				B200000000000000000004 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				8E4A86632F15627300F77298 /* PBXTargetDependency */,
+				B200000000000000000011 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				8ECE62512F0FF320009C2BD4 /* gym-bro */,
+				B200000000000000000006 /* GymBroShared */,
 			);
 			name = "gym-bro";
 			productName = "gym-bro";
@@ -282,10 +338,32 @@
 			);
 			fileSystemSynchronizedGroups = (
 				8ECE62512F0FF320009C2BD4 /* gym-bro */,
+				B200000000000000000006 /* GymBroShared */,
 			);
 			name = "gym-bro (iOS Only)";
 			productName = "gym-bro";
 			productReference = A1000000000000000000A5 /* gym-bro-iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B200000000000000000010 /* GymBroWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B200000000000000000014 /* Build configuration list for PBXNativeTarget "GymBroWatch" */;
+			buildPhases = (
+				B200000000000000000009 /* Sources */,
+				B200000000000000000008 /* Frameworks */,
+				B20000000000000000000A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B200000000000000000006 /* GymBroShared */,
+				B200000000000000000007 /* GymBroWatch */,
+			);
+			name = GymBroWatch;
+			productName = GymBroWatch;
+			productReference = B200000000000000000002 /* GymBroWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -298,6 +376,9 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					B200000000000000000010 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					8E4A864D2F15627200F77298 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -324,6 +405,7 @@
 				A1000000000000000000A7 /* gym-bro (iOS Only) */,
 				8E4A864D2F15627200F77298 /* RestTimerWidgetExtension */,
 				744154005BEA15A971C125D6 /* gym-broUITests */,
+				B200000000000000000010 /* GymBroWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -354,6 +436,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B200000000000000000015 /* LiquidGlassIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -389,6 +479,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B200000000000000000009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -407,6 +504,11 @@
 			isa = PBXTargetDependency;
 			target = 8E4A864D2F15627200F77298 /* RestTimerWidgetExtension */;
 			targetProxy = A1000000000000000000A3 /* PBXContainerItemProxy */;
+		};
+		B200000000000000000011 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B200000000000000000010 /* GymBroWatch */;
+			targetProxy = B200000000000000000003 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -785,6 +887,75 @@
 			};
 			name = Debug;
 		};
+		B200000000000000000012 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = LiquidGlassIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = GymBroWatch/GymBroWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XTA9CPY447;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Gym Bro";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Gym Bro reads workout data to track your strength workout.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Gym Bro saves your strength workout to Apple Fitness.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "me.goessl.gym-bro";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "me.goessl.gym-bro.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		B200000000000000000013 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = LiquidGlassIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = GymBroWatch/GymBroWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XTA9CPY447;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Gym Bro";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Gym Bro reads workout data to track your strength workout.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Gym Bro saves your strength workout to Apple Fitness.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "me.goessl.gym-bro";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "me.goessl.gym-bro.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -829,6 +1000,15 @@
 			buildConfigurations = (
 				4BF5156EEAC53BE6FFA7F092 /* Release */,
 				CADDB855A0ADA76995180116 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B200000000000000000014 /* Build configuration list for PBXNativeTarget "GymBroWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B200000000000000000012 /* Debug */,
+				B200000000000000000013 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

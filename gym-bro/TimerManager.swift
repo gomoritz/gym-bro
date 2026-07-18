@@ -16,11 +16,14 @@ class TimerManager {
     private var timer: Timer?
     private var endTime: Date?
 
+    var projectedEndTime: Date? { endTime }
+
     // Callbacks for live activity updates (set by SessionManager)
     var onTimerTick: (() -> Void)?
     var onTimerExpired: (() -> Void)?
 
     func start(duration: TimeInterval) {
+        timer?.invalidate()
         self.duration = duration
         self.timeRemaining = duration
         self.endTime = Date().addingTimeInterval(duration)
@@ -34,6 +37,7 @@ class TimerManager {
 
             if remaining > 0 {
                 self.timeRemaining = remaining
+                self.onTimerTick?()
             } else {
                 self.timer?.invalidate()
                 self.timer = nil

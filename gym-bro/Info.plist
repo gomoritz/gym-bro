@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Gym Bro reads workout data to track your strength workout on Apple Watch.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Gym Bro saves your strength workout to Apple Fitness.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIBackgroundModes</key>
