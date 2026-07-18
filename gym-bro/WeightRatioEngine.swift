@@ -116,7 +116,7 @@ struct WeightRatioEngine {
         )
     }
 
-    private static func roundToStep(_ weight: Double, step: Double = 2.5) -> Double {
+    static func roundToStep(_ weight: Double, step: Double = 2.5) -> Double {
         (weight / step).rounded() * step
     }
 }

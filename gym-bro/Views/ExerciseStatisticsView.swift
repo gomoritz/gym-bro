@@ -12,6 +12,9 @@ import SwiftUI
 struct ExerciseStatisticsView: View {
     @Binding var timeRange: StatsTimeRange
 
+    var fixedExercise: Exercise? = nil
+    var suggestionLocation: GymLocation? = nil
+
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
     @AppStorage("selectedStatsExerciseId") private var selectedExerciseIdString: String = ""
@@ -21,7 +24,8 @@ struct ExerciseStatisticsView: View {
         exercises.filter { ($0.history?.isEmpty == false) }
     }
 
-    private var selectedExercise: Exercise? {
+    private var resolvedExercise: Exercise? {
+        if let fixedExercise { return fixedExercise }
         guard let uuid = UUID(uuidString: selectedExerciseIdString) else { return nil }
         return exercises.first { $0.id == uuid }
     }
@@ -29,9 +33,11 @@ struct ExerciseStatisticsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.xxl) {
-                exerciseSelector
+                if fixedExercise == nil {
+                    exerciseSelector
+                }
 
-                if let exercise = selectedExercise {
+                if let exercise = resolvedExercise {
                     let setData = buildSetData(for: exercise)
                     let sessionData = buildSessionData(from: setData)
 
@@ -39,6 +45,7 @@ struct ExerciseStatisticsView: View {
                         noDataForExerciseView
                     } else {
                         overviewSection(setData: setData, sessionData: sessionData)
+                        progressionSuggestionCard(for: exercise)
                         topWeightSection(sessionData: sessionData)
                         e1rmSection(sessionData: sessionData)
                         volumeSection(sessionData: sessionData, exercise: exercise)
@@ -74,7 +81,7 @@ struct ExerciseStatisticsView: View {
                     .foregroundStyle(.blue)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    if let exercise = selectedExercise {
+                    if let exercise = resolvedExercise {
                         Text(exercise.name)
                             .font(.system(.headline, design: .rounded, weight: .semibold))
                             .foregroundStyle(.primary)
@@ -176,6 +183,109 @@ struct ExerciseStatisticsView: View {
                 color: Theme.Colors.volume
             )
         }
+    }
+
+    // MARK: - Progression Suggestion Card
+
+    @ViewBuilder
+    private func progressionSuggestionCard(for exercise: Exercise) -> some View {
+        if let suggestion = ProgressionEngine.evaluate(exercise: exercise, at: suggestionLocation) {
+            let basis = suggestion.basis
+            if suggestion.suggestsIncrease {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "arrow.up.forward.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.title3)
+                        Text("Increase suggested → ~\(ProgressionEngine.formatWeight(suggestion.suggestedWeight))")
+                            .font(.system(.headline, design: .rounded, weight: .semibold))
+                        Spacer()
+                    }
+
+                    ForEach(Array(suggestion.triggers.enumerated()), id: \.offset) { _, trigger in
+                        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+                            Image(systemName: trigger.iconName)
+                                .foregroundStyle(.green)
+                                .font(.subheadline)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(trigger.title)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                Text(trigger.detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                    }
+
+                    progressionBasisFooter(basis)
+                }
+                .padding(Theme.Spacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.green.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+            } else if basis.sessionsConsidered > 0 {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "checkmark.circle")
+                            .foregroundStyle(.secondary)
+                            .font(.title3)
+                        Text("On track — keep at current target")
+                            .font(.system(.headline, design: .rounded, weight: .semibold))
+                        Spacer()
+                    }
+                    progressionBasisFooter(basis)
+                }
+                .padding(Theme.Spacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+            } else {
+                notEnoughProgressionDataCard(gymScoped: basis.gymScoped)
+            }
+        } else if !exercise.hasTarget {
+            progressionInfoCard("Set a target weight and rep range to get progression suggestions")
+        } else {
+            notEnoughProgressionDataCard(gymScoped: suggestionLocation != nil)
+        }
+    }
+
+    @ViewBuilder
+    private func progressionBasisFooter(_ basis: ProgressionBasis) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Best e1RM \(ProgressionEngine.formatWeight(basis.bestRecentE1RM)) · target implies \(ProgressionEngine.formatWeight(basis.impliedE1RM))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(progressionScopeText(basis))
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func progressionScopeText(_ basis: ProgressionBasis) -> String {
+        let sessionWord = basis.sessionsConsidered == 1 ? "session" : "sessions"
+        if basis.gymScoped, let name = basis.locationName {
+            return "\(basis.sessionsConsidered) recent \(sessionWord) at \(name)"
+        }
+        return "\(basis.sessionsConsidered) recent \(sessionWord), all gyms"
+    }
+
+    private func notEnoughProgressionDataCard(gymScoped: Bool) -> some View {
+        progressionInfoCard(gymScoped ? "Not enough data at this gym" : "Not enough data yet")
+    }
+
+    private func progressionInfoCard(_ message: String) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "info.circle")
+                .foregroundStyle(.tertiary)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(Theme.Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
     }
 
     // MARK: - Top Weight Chart
@@ -772,7 +882,7 @@ struct ExerciseStatisticsView: View {
     }
 
     private func epley(weight: Double, reps: Int) -> Double {
-        weight * (1.0 + Double(reps) / 30.0)
+        ProgressionEngine.e1RM(weight: weight, reps: reps)
     }
 
     private var isoCalendar: Calendar {
@@ -846,10 +956,58 @@ private struct ExercisePickerSheet: View {
     }
 }
 
+// MARK: - Workout-embedded Detail Wrapper
+
+struct ExerciseStatsDetailView: View {
+    let exercise: Exercise
+    var location: GymLocation? = nil
+    @State private var timeRange: StatsTimeRange = .threeMonths
+
+    var body: some View {
+        ExerciseStatisticsView(
+            timeRange: $timeRange,
+            fixedExercise: exercise,
+            suggestionLocation: location
+        )
+        .navigationTitle(exercise.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                timeRangeMenu
+            }
+        }
+    }
+
+    private var timeRangeMenu: some View {
+        Menu {
+            Picker("Time Range", selection: $timeRange) {
+                ForEach(StatsTimeRange.allCases) { range in
+                    Text(range.label).tag(range)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(timeRange.rawValue)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+        }
+    }
+}
+
 #Preview {
     ExerciseStatisticsView(timeRange: .constant(.threeMonths))
         .modelContainer(for: [
             WorkoutSession.self, WorkoutSet.self, Exercise.self, Split.self,
             GymLocation.self, ExerciseLocationProfile.self, ExerciseCategory.self,
         ])
+}
+
+#Preview("Exercise Stats Detail") {
+    let fixture = ProgressionPreviewData.make()
+    return NavigationStack {
+        ExerciseStatsDetailView(exercise: fixture.exercise, location: fixture.location)
+    }
+    .modelContainer(fixture.container)
 }

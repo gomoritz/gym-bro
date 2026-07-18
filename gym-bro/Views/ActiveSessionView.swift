@@ -36,6 +36,8 @@ struct ActiveSessionView: View {
                     if let exercise = sessionManager.currentExercise {
                         increaseReminderBanner
 
+                        progressionSuggestionBanner
+
                         setHistorySection
 
                         if exercise.hasTarget {
@@ -67,6 +69,14 @@ struct ActiveSessionView: View {
                     showEndSessionAlert = true
                 }
                 .foregroundStyle(.red)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let exercise = sessionManager.currentExercise {
+                    NavigationLink(destination: ExerciseStatsDetailView(exercise: exercise, location: sessionManager.currentLocation)) {
+                        Image(systemName: "chart.xyaxis.line")
+                            .foregroundStyle(.blue)
+                    }
+                }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(destination: WorkoutTimelineView(sessionManager: sessionManager)) {
@@ -284,6 +294,19 @@ struct ActiveSessionView: View {
             }
             .padding(Theme.Spacing.lg)
             .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+        }
+    }
+
+    // MARK: - Progression Suggestion Banner
+
+    @ViewBuilder
+    private var progressionSuggestionBanner: some View {
+        if let exercise = sessionManager.currentExercise,
+           exercise.hasTarget,
+           let suggestion = ProgressionEngine.evaluate(exercise: exercise, at: sessionManager.currentLocation),
+           suggestion.suggestsIncrease
+        {
+            ProgressionBannerView(suggestion: suggestion)
         }
     }
 
@@ -731,8 +754,51 @@ struct ReplacementExercisePickerView: View {
     }
 }
 
+private struct ProgressionBannerView: View {
+    let suggestion: ProgressionSuggestion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .foregroundStyle(.green)
+                    .font(.title3)
+
+                Text("Time to level up")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                Spacer()
+            }
+
+            ForEach(Array(suggestion.triggers.enumerated()), id: \.offset) { _, trigger in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(trigger.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(trigger.detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text("Consider ~\(ProgressionEngine.formatWeight(suggestion.suggestedWeight))")
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .foregroundStyle(.green)
+        }
+        .padding(Theme.Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.green.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+    }
+}
+
 #Preview {
     NavigationStack {
         ActiveSessionView(sessionManager: SessionManager())
     }
+}
+
+#Preview("Progression Banner") {
+    ProgressionBannerView(suggestion: .sampleSuggestion)
+        .padding()
 }
