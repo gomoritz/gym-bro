@@ -16,6 +16,7 @@ struct WorkoutTimelineView: View {
 
     @State private var predictor: WorkoutPredictor?
     @State private var prediction: WorkoutPrediction?
+    @State private var editingSet: WorkoutSet?
 
     var body: some View {
         NavigationStack {
@@ -70,6 +71,9 @@ struct WorkoutTimelineView: View {
             }
             .onChange(of: sessionManager.activeSession?.sets?.count ?? 0) { _, _ in
                 updatePrediction()
+            }
+            .sheet(item: $editingSet) { set in
+                SetEditorSheet(mode: .edit(set))
             }
         }
     }
@@ -451,26 +455,32 @@ struct WorkoutTimelineView: View {
     }
 
     private func setRowView(_ workoutSet: WorkoutSet, setNumber: Int, exercise: Exercise) -> some View {
-        HStack {
-            Text("Set \(setNumber)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 50, alignment: .leading)
+        Button {
+            editingSet = workoutSet
+        } label: {
+            HStack {
+                Text("Set \(setNumber)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 50, alignment: .leading)
 
-            if let weight = workoutSet.weight, let reps = workoutSet.reps {
-                Text("\(String(format: "%.1f", weight))kg x \(reps)")
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-            } else if let duration = workoutSet.duration {
-                Text("\(duration) min")
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                if let weight = workoutSet.weight, let reps = workoutSet.reps {
+                    Text("\(String(format: "%.1f", weight))kg x \(reps)")
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
+                } else if let duration = workoutSet.duration {
+                    Text("\(duration) min")
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
+                }
+
+                Spacer()
+
+                Text(timeAgoString(from: workoutSet.startTime))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
-
-            Spacer()
-
-            Text(timeAgoString(from: workoutSet.startTime))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Helper Methods

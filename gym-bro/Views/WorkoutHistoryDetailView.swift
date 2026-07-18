@@ -20,6 +20,13 @@ struct WorkoutHistoryDetailView: View {
 
     @State private var showDeleteConfirmation = false
     @State private var showSplitPicker = false
+    @State private var isEditMode = false
+    @State private var editingSet: WorkoutSet?
+    @State private var addingSetForExercise: Exercise?
+    @State private var pickedExercise: Exercise?
+    @State private var showAddExercisePicker = false
+    @State private var exercisePendingRemoval: Exercise?
+    @State private var showTimeEditor = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -35,6 +42,14 @@ struct WorkoutHistoryDetailView: View {
         .navigationTitle("Workout Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    withAnimation { isEditMode.toggle() }
+                } label: {
+                    Text(isEditMode ? "Done" : "Edit")
+                        .fontWeight(isEditMode ? .semibold : .regular)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .destructive) {
                     showDeleteConfirmation = true
@@ -55,6 +70,45 @@ struct WorkoutHistoryDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This action cannot be undone.")
+        }
+        .sheet(isPresented: $showTimeEditor) {
+            SessionTimeEditorSheet(session: session)
+        }
+        .sheet(item: $editingSet) { set in
+            SetEditorSheet(mode: .edit(set))
+        }
+        .sheet(item: $addingSetForExercise) { exercise in
+            SetEditorSheet(mode: addSetMode(for: exercise))
+        }
+        .sheet(isPresented: $showAddExercisePicker, onDismiss: {
+            if let picked = pickedExercise {
+                pickedExercise = nil
+                addingSetForExercise = picked
+            }
+        }) {
+            AddExerciseToWorkoutSheet(session: session) { exercise in
+                pickedExercise = exercise
+            }
+        }
+        .confirmationDialog(
+            "Remove Exercise?",
+            isPresented: Binding(
+                get: { exercisePendingRemoval != nil },
+                set: { if !$0 { exercisePendingRemoval = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: exercisePendingRemoval
+        ) { exercise in
+            Button("Remove Exercise", role: .destructive) {
+                WorkoutPersistence.removeExercise(exercise, from: session, in: modelContext)
+                exercisePendingRemoval = nil
+            }
+            Button("Cancel", role: .cancel) {
+                exercisePendingRemoval = nil
+            }
+        } message: { exercise in
+            let count = getSetsForExercise(exercise)?.count ?? 0
+            Text("This deletes all \(count) sets of \(exercise.name) in this workout. If the exercise is part of the split, it will be marked as skipped.")
         }
     }
 
@@ -129,8 +183,22 @@ struct WorkoutHistoryDetailView: View {
 
     private var generalDataSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-            Text("General Information")
-                .font(.system(.title2, design: .rounded, weight: .bold))
+            HStack {
+                Text("General Information")
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+
+                if isEditMode {
+                    Spacer()
+
+                    Button {
+                        showTimeEditor = true
+                    } label: {
+                        Label("Edit Time", systemImage: "pencil")
+                            .font(.subheadline)
+                            .labelStyle(.iconOnly)
+                    }
+                }
+            }
 
             VStack(spacing: Theme.Spacing.md) {
                 InfoRow(icon: "calendar", label: "Date", value: dateFormatter.string(from: session.startTime))
@@ -386,7 +454,73 @@ struct WorkoutHistoryDetailView: View {
                     }
                 }
             }
+
+            if isEditMode {
+                Button {
+                    showAddExercisePicker = true
+                } label: {
+                    Label("Add Exercise", systemImage: "plus.circle")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(Theme.Spacing.md)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                }
+            }
+
+            if !skippedExercises.isEmpty {
+                skippedSection
+            }
         }
+    }
+
+    private var skippedSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Skipped")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                ForEach(skippedExercises) { exercise in
+                    HStack {
+                        Label {
+                            Text(exercise.name)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } icon: {
+                            Image(systemName: "minus.circle")
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        if isEditMode {
+                            Button {
+                                addingSetForExercise = exercise
+                            } label: {
+                                Label("Add Sets", systemImage: "plus.circle")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(Theme.Spacing.lg)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+        }
+    }
+
+    private var skippedExercises: [Exercise] {
+        guard let ids = session.skippedExerciseIds,
+              let splitExercises = session.split?.exercises
+        else {
+            return []
+        }
+        let requested = Set(ids)
+        return splitExercises
+            .filter { requested.contains($0.id) }
+            .sorted { $0.name < $1.name }
     }
 
     private func exerciseTimelineView(_ exercise: Exercise, number: Int) -> some View {
@@ -408,6 +542,19 @@ struct WorkoutHistoryDetailView: View {
                         .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(.purple)
                 }
+
+                if isEditMode {
+                    Menu {
+                        Button(role: .destructive) {
+                            exercisePendingRemoval = exercise
+                        } label: {
+                            Label("Remove Exercise", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if let sets = getSetsForExercise(exercise) {
@@ -418,12 +565,39 @@ struct WorkoutHistoryDetailView: View {
                 }
                 .padding(.leading, 32)
             }
+
+            if isEditMode {
+                Button {
+                    addingSetForExercise = exercise
+                } label: {
+                    Label("Add Set", systemImage: "plus.circle")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+                .padding(.leading, 32)
+                .padding(.top, Theme.Spacing.xs)
+            }
         }
         .padding(Theme.Spacing.lg)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
     }
 
     private func setTimelineRow(_ workoutSet: WorkoutSet, setNumber: Int) -> some View {
+        Group {
+            if isEditMode {
+                Button {
+                    editingSet = workoutSet
+                } label: {
+                    setTimelineRowContent(workoutSet, setNumber: setNumber)
+                }
+                .buttonStyle(.plain)
+            } else {
+                setTimelineRowContent(workoutSet, setNumber: setNumber)
+            }
+        }
+    }
+
+    private func setTimelineRowContent(_ workoutSet: WorkoutSet, setNumber: Int) -> some View {
         HStack {
             Text("Set \(setNumber)")
                 .font(.caption)
@@ -450,7 +624,54 @@ struct WorkoutHistoryDetailView: View {
             Text(timeFormatter.string(from: workoutSet.startTime))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+
+            if isEditMode {
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
+        .contentShape(Rectangle())
+    }
+
+    private func addSetMode(for exercise: Exercise) -> SetEditorSheet.Mode {
+        if let last = getSetsForExercise(exercise)?.last {
+            return .add(
+                exercise: exercise,
+                session: session,
+                defaultStartTime: clampedStartTime(after: last.startTime),
+                defaultWeight: last.weight,
+                defaultReps: last.reps,
+                defaultDuration: last.duration
+            )
+        }
+
+        let base: Date
+        if let lastSessionSet = (session.sets ?? []).max(by: { $0.startTime < $1.startTime }) {
+            base = clampedStartTime(after: lastSessionSet.startTime)
+        } else {
+            base = session.startTime
+        }
+
+        let weight = exercise.hasTarget ? exercise.effectiveTargetWeight(for: session.gymLocation) : nil
+        let reps = exercise.hasTarget ? (exercise.maxReps ?? exercise.minReps) : nil
+
+        return .add(
+            exercise: exercise,
+            session: session,
+            defaultStartTime: base,
+            defaultWeight: weight,
+            defaultReps: reps,
+            defaultDuration: nil
+        )
+    }
+
+    private func clampedStartTime(after date: Date) -> Date {
+        let candidate = date.addingTimeInterval(90)
+        if let end = session.endTime, candidate > end {
+            return end
+        }
+        return candidate
     }
 
     // MARK: - Helper Methods

@@ -152,30 +152,108 @@ struct WorkoutPersistence {
         in context: ModelContext
     ) {
         session.endTime = Date.now
+        recomputeDerivedState(for: session, split: split, in: context)
+        save(context: context)
+    }
 
-        if let sets = session.sets {
-            var orderSeen: [UUID] = []
-            let sortedSets = sets.sorted { $0.startTime < $1.startTime }
+    // Recomputes actualExerciseOrder and skippedExerciseIds from the session's
+    // current sets. Callers are responsible for saving.
+    static func recomputeDerivedState(for session: WorkoutSession, split: Split? = nil, in context: ModelContext) {
+        var orderSeen: [UUID] = []
+        let sortedSets = (session.sets ?? []).sorted { $0.startTime < $1.startTime }
 
-            for set in sortedSets {
-                if let exerciseId = set.exercise?.id, !orderSeen.contains(exerciseId) {
-                    orderSeen.append(exerciseId)
-                }
+        for set in sortedSets {
+            if let exerciseId = set.exercise?.id, !orderSeen.contains(exerciseId) {
+                orderSeen.append(exerciseId)
             }
-
-            session.actualExerciseOrder = orderSeen.isEmpty ? nil : orderSeen
         }
 
-        if let split = split,
-           let allExercises = split.exercises,
-           let performedOrder = session.actualExerciseOrder {
-            let performedIds = Set(performedOrder)
+        session.actualExerciseOrder = orderSeen.isEmpty ? nil : orderSeen
+
+        let resolvedSplit = split ?? session.split
+        if let resolvedSplit = resolvedSplit,
+           let allExercises = resolvedSplit.exercises {
+            let performedIds = Set(orderSeen)
             let skippedIds = allExercises
                 .map { $0.id }
                 .filter { !performedIds.contains($0) }
 
             session.skippedExerciseIds = skippedIds.isEmpty ? nil : skippedIds
         }
+    }
+
+    static func updateSet(_ set: WorkoutSet, weight: Double?, reps: Int?, duration: Int?, startTime: Date, in context: ModelContext) {
+        let session = set.session
+
+        // Preserve the set's duration (startTime -> endTime delta) across the edit.
+        set.endTime = set.endTime.map { startTime.addingTimeInterval($0.timeIntervalSince(set.startTime)) }
+        set.startTime = startTime
+
+        set.weight = weight
+        set.reps = reps
+        set.duration = duration
+
+        // Deliberately leaves restDuration, restTimerUsed, location profiles, and
+        // exercise.targetWeight untouched: these are live-measured telemetry / live
+        // coaching side effects that retroactive edits must not fabricate.
+
+        if let session = session {
+            recomputeDerivedState(for: session, in: context)
+        }
+        save(context: context)
+    }
+
+    static func deleteSet(_ set: WorkoutSet, in context: ModelContext) {
+        let session = set.session
+
+        context.delete(set)
+
+        if let session = session {
+            recomputeDerivedState(for: session, in: context)
+        }
+        save(context: context)
+    }
+
+    @discardableResult
+    static func addSet(exercise: Exercise, session: WorkoutSession, weight: Double?, reps: Int?, duration: Int?, startTime: Date, in context: ModelContext) -> WorkoutSet {
+        let workoutSet = WorkoutSet(
+            startTime: startTime,
+            weight: weight,
+            reps: reps,
+            duration: duration,
+            exercise: exercise,
+            session: session,
+            endTime: startTime
+        )
+
+        context.insert(workoutSet)
+
+        if session.sets == nil { session.sets = [] }
+        session.sets?.append(workoutSet)
+
+        if exercise.history == nil { exercise.history = [] }
+        exercise.history?.append(workoutSet)
+
+        recomputeDerivedState(for: session, in: context)
+        save(context: context)
+
+        return workoutSet
+    }
+
+    static func removeExercise(_ exercise: Exercise, from session: WorkoutSession, in context: ModelContext) {
+        for set in (session.sets ?? []) where set.exercise?.id == exercise.id {
+            context.delete(set)
+        }
+
+        recomputeDerivedState(for: session, in: context)
+        save(context: context)
+    }
+
+    static func updateSessionTimes(_ session: WorkoutSession, startTime: Date, endTime: Date?, in context: ModelContext) {
+        guard endTime == nil || startTime < endTime! else { return }
+
+        session.startTime = startTime
+        session.endTime = endTime
 
         save(context: context)
     }
