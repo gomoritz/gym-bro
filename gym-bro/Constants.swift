@@ -40,6 +40,6 @@ enum Constants {
     enum Progression {
         static let trendSessionWindow = 3     // sessions considered for e1RM trend
         static let e1rmMarginRatio = 0.025    // 2.5% over implied e1RM before Trigger B fires
-        static let weightStep = 2.5           // rounding step for suggested weight
+        static let weightStep = 1.0           // rounding step for suggested weight
     }
 }
