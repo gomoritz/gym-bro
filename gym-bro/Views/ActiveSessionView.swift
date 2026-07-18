@@ -23,6 +23,8 @@ struct ActiveSessionView: View {
     @State private var showExerciseEditor = false
     @State private var setLogged = false
     @State private var reminderDismissed = false
+    @State private var editingSet: WorkoutSet?
+    @State private var setPendingDeletion: WorkoutSet?
 
     @FocusState private var focusedField: Field?
     enum Field { case weight, reps, duration }
@@ -109,6 +111,34 @@ struct ActiveSessionView: View {
             NavigationStack {
                 ExerciseFormView(exercise: sessionManager.currentExercise)
             }
+        }
+        .sheet(item: $editingSet, onDismiss: {
+            updateInputDefaults()
+        }) { set in
+            SetEditorSheet(mode: .edit(set), onSave: {
+                updateInputDefaults()
+            })
+        }
+        .confirmationDialog(
+            "Delete Set?",
+            isPresented: Binding(
+                get: { setPendingDeletion != nil },
+                set: { if !$0 { setPendingDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete Set", role: .destructive) {
+                if let set = setPendingDeletion {
+                    WorkoutPersistence.deleteSet(set, in: modelContext)
+                    updateInputDefaults()
+                }
+                setPendingDeletion = nil
+            }
+            Button("Cancel", role: .cancel) {
+                setPendingDeletion = nil
+            }
+        } message: {
+            Text("This set will be permanently removed. If it is the exercise's only set in this workout, the exercise will count as skipped.")
         }
         .onAppear {
             updateInputDefaults()
@@ -303,27 +333,46 @@ struct ActiveSessionView: View {
                         .foregroundStyle(.secondary)
 
                     ForEach(Array(sets.sorted(by: { $0.startTime < $1.startTime }).enumerated()), id: \.element.id) { index, workoutSet in
-                        HStack {
-                            Text("Set \(index + 1)")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 50, alignment: .leading)
+                        Button {
+                            editingSet = workoutSet
+                        } label: {
+                            HStack {
+                                Text("Set \(index + 1)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 50, alignment: .leading)
 
-                            if let w = workoutSet.weight, let r = workoutSet.reps {
-                                Text("\(String(format: "%.1f", w)) kg x \(r)")
-                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                            } else if let d = workoutSet.duration {
-                                Text("\(d) min")
-                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                if let w = workoutSet.weight, let r = workoutSet.reps {
+                                    Text("\(String(format: "%.1f", w)) kg x \(r)")
+                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                } else if let d = workoutSet.duration {
+                                    Text("\(d) min")
+                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.caption)
+                            }
+                            .padding(.vertical, Theme.Spacing.xs)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                editingSet = workoutSet
+                            } label: {
+                                Label("Edit Set", systemImage: "pencil")
                             }
 
-                            Spacer()
-
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.caption)
+                            Button(role: .destructive) {
+                                setPendingDeletion = workoutSet
+                            } label: {
+                                Label("Delete Set", systemImage: "trash")
+                            }
                         }
-                        .padding(.vertical, Theme.Spacing.xs)
                     }
                 }
                 .padding(Theme.Spacing.lg)
