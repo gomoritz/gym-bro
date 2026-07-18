@@ -54,6 +54,7 @@ struct SetEditorSheet: View {
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.trailing)
                                 .font(.system(.body, design: .rounded, weight: .semibold))
+                                .accessibilityIdentifier("setEditorDurationField")
                         }
                     } else {
                         HStack {
@@ -63,6 +64,7 @@ struct SetEditorSheet: View {
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .font(.system(.body, design: .rounded, weight: .semibold))
+                                .accessibilityIdentifier("setEditorWeightField")
                                 .onChange(of: weight) { _, newValue in
                                     weight = newValue.replacingOccurrences(of: ",", with: ".")
                                 }
@@ -74,6 +76,7 @@ struct SetEditorSheet: View {
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.trailing)
                                 .font(.system(.body, design: .rounded, weight: .semibold))
+                                .accessibilityIdentifier("setEditorRepsField")
                         }
                     }
                 }

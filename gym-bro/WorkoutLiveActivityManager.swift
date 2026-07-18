@@ -35,6 +35,11 @@ class WorkoutLiveActivityManager: NSObject {
     // MARK: - Notifications
     
     func requestNotificationAuthorization() {
+        #if DEBUG
+        // Suppress the system notification-permission alert during automated UI
+        // tests; it would otherwise intercept taps on the app underneath.
+        if DebugTestFlags.seedTestData { return }
+        #endif
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { success, error in
             if let error = error {
                 print("Notification authorization failed: \(error)")

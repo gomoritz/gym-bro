@@ -554,6 +554,7 @@ struct WorkoutHistoryDetailView: View {
                         Image(systemName: "ellipsis.circle")
                             .foregroundStyle(.secondary)
                     }
+                    .accessibilityIdentifier("exerciseMenu_\(exercise.name)")
                 }
             }
 
