@@ -123,8 +123,7 @@ final class WatchWorkoutBridge: NSObject {
 
         switch command {
         case let .logSet(weight, reps):
-            manager.logSet(weight: weight, reps: reps)
-            manager.startTimer()
+            manager.completeSet(weight: weight, reps: reps)
         case let .selectExercise(id):
             guard let exercise = manager.remainingExercisesInSplit.first(where: { $0.id == id }) else { return }
             manager.selectNextExercise(exercise)

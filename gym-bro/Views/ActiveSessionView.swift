@@ -468,7 +468,7 @@ struct ActiveSessionView: View {
         VStack(spacing: Theme.Spacing.md) {
             if let exercise = sessionManager.currentExercise {
                 if exercise.hasTarget {
-                    if hasReachedTargetSets {
+                    if sessionManager.hasReachedCurrentExerciseTarget {
                         finishExerciseButton(isPrimary: true)
                         HStack(spacing: Theme.Spacing.md) {
                             finishSetButton(isPrimary: false)
@@ -571,20 +571,6 @@ struct ActiveSessionView: View {
         return "\(currentNumber)/\(exercises.count)"
     }
 
-    private var hasReachedTargetSets: Bool {
-        guard let exercise = sessionManager.currentExercise,
-              let targetSets = exercise.targetSets
-        else {
-            return false
-        }
-        // currentSetNumber = (logged sets for this exercise) + 1. "Finish
-        // Exercise" should only become the primary action once ALL target sets
-        // are actually logged, i.e. loggedSets >= targetSets, which is
-        // currentSetNumber > targetSets. Using >= would flip to Finish while the
-        // user is still on "Set N of N" (the last set not yet logged).
-        return sessionManager.currentSetNumber > targetSets
-    }
-
     private var isFirstSet: Bool {
         sessionManager.currentSetNumber == 1
     }
@@ -612,7 +598,12 @@ struct ActiveSessionView: View {
             else {
                 return
             }
-            sessionManager.logSet(weight: weightValue, reps: repsValue)
+
+            let success = sessionManager.completeSet(weight: weightValue, reps: repsValue)
+            setLogged.toggle()
+            if !success {
+                showEndSessionAlert = true
+            }
         } else {
             guard let durationValue = Int(duration),
                   durationValue > 0
@@ -620,10 +611,9 @@ struct ActiveSessionView: View {
                 return
             }
             sessionManager.logDurationSet(minutes: durationValue)
+            setLogged.toggle()
+            sessionManager.startTimer()
         }
-
-        setLogged.toggle()
-        sessionManager.startTimer()
     }
 
     private func finishExercise() {

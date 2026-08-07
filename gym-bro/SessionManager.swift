@@ -64,6 +64,11 @@ class SessionManager: Identifiable, Hashable {
         return setsForCurrentExercise.count + 1
     }
 
+    var hasReachedCurrentExerciseTarget: Bool {
+        guard let targetSets = currentExercise?.targetSets else { return false }
+        return currentSetNumber > targetSets
+    }
+
     var lastSet: WorkoutSet? {
         guard let session = activeSession,
               let sets = session.sets else {
@@ -159,11 +164,12 @@ class SessionManager: Identifiable, Hashable {
         }
     }
 
-    func logSet(weight: Double, reps: Int) {
+    @discardableResult
+    func logSet(weight: Double, reps: Int) -> Bool {
         guard let session = activeSession,
               let exercise = currentExercise,
               let context = modelContext else {
-            return
+            return false
         }
         let wasTimerActive = isRestTimerActive || isTimerExpired
         WorkoutPersistence.logWeightSet(
@@ -176,6 +182,26 @@ class SessionManager: Identifiable, Hashable {
             in: context
         )
         WatchWorkoutBridge.shared.publishCurrentState()
+        return true
+    }
+
+    @discardableResult
+    func completeSet(weight: Double, reps: Int) -> Bool {
+        let setNumberBeingCompleted = currentSetNumber
+        let reachesTarget: Bool
+        if let targetSets = currentExercise?.targetSets {
+            reachesTarget = setNumberBeingCompleted >= targetSets
+        } else {
+            reachesTarget = false
+        }
+        guard logSet(weight: weight, reps: reps) else { return false }
+
+        if reachesTarget {
+            return nextExercise()
+        }
+
+        startTimer()
+        return true
     }
 
     func logDurationSet(minutes: Int) {
@@ -241,7 +267,7 @@ class SessionManager: Identifiable, Hashable {
     func selectNextExercise(_ exercise: Exercise) {
         guard let split = currentSplit ?? pendingSplit,
               let exercises = split.exercises,
-              let index = exercises.firstIndex(of: exercise) else {
+              let index = exercises.firstIndex(where: { $0.id == exercise.id }) else {
             return
         }
 
