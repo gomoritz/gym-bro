@@ -77,7 +77,7 @@ enum DebugLogicTests {
         testProgressionTrigger_C(context)
         testProgressionFiresDuringActiveSession_Suspicion1(context)
         testCurrentSetNumberAfterDelete_Suspicion2(context)
-        testAutomaticExerciseAdvanceAfterTargetSets(context)
+        testFinalTargetSetPromotesFinishExercise(context)
         testWeightRatioEmptySessions_Suspicion3(context)
         testIncreaseReminderUsesRealSessions_Fix1(context)
         testSetTimeReorderNoWrongSkip_Suspicion4(context)
@@ -203,48 +203,34 @@ enum DebugLogicTests {
         // No stored counter -> derived value tracks deletions, no off-by-one desync.
     }
 
-    // MARK: - Automatic exercise advancement after target sets
+    // MARK: - Final target set button priority
 
-    private static func testAutomaticExerciseAdvanceAfterTargetSets(_ context: ModelContext) {
-        let first = Exercise(name: "Auto Advance A", targetWeight: 20, targetSets: 2, minReps: 8, maxReps: 12)
-        let second = Exercise(name: "Auto Advance B", targetWeight: 30, targetSets: 2, minReps: 8, maxReps: 12)
-        let split = Split(name: "Auto Advance")
-        split.exercises = [first, second]
-        context.insert(first); context.insert(second); context.insert(split)
+    private static func testFinalTargetSetPromotesFinishExercise(_ context: ModelContext) {
+        let exercise = Exercise(name: "Button Priority", targetWeight: 20, targetSets: 2, minReps: 8, maxReps: 12)
+        let split = Split(name: "Button Priority")
+        split.exercises = [exercise]
+        context.insert(exercise); context.insert(split)
+
+        let session = WorkoutSession(startTime: Date(), split: split)
+        context.insert(session)
 
         let manager = SessionManager()
-        manager.startSession(for: split, context: context)
-        guard let selectedStart = split.exercises?.first else {
-            check("2b.split has a starting exercise", false)
-            return
-        }
-        manager.selectNextExercise(selectedStart)
+        manager.currentSplit = split
+        manager.activeSession = session
+        manager.currentExerciseIndex = 0
 
-        guard let startingExercise = manager.currentExercise else {
-            check("2b.workout starts with an exercise", false)
-            return
-        }
+        check("2b.Log Set remains primary before the final target set",
+              !manager.hasReachedCurrentExerciseTarget,
+              "set=\(manager.currentSetNumber), target=\(exercise.targetSets ?? 0)")
 
-        let firstSetContinues = manager.completeSet(weight: 20, reps: 10)
-        check("2b.first target set keeps current exercise",
-              firstSetContinues && manager.currentExercise?.id == startingExercise.id && manager.currentSetNumber == 2,
-              "exercise=\(manager.currentExercise?.name ?? "nil"), set=\(manager.currentSetNumber)")
-        check("2b.other exercise remains available",
-              manager.remainingExercisesInSplit.count == 1,
-              "split=\(split.exercises?.map(\.name) ?? []), remaining=\(manager.remainingExercisesInSplit.map(\.name)), logged=\(manager.activeSession?.sets?.compactMap { $0.exercise?.name } ?? [])")
+        let firstSet = WorkoutSet(startTime: Date(), weight: 20, reps: 10,
+                                  exercise: exercise, session: session)
+        context.insert(firstSet)
+        session.sets = [firstSet]
 
-        check("2b.final target set is recognized before logging",
-              manager.currentSetNumber == manager.currentExercise?.targetSets,
-              "set=\(manager.currentSetNumber), target=\(manager.currentExercise?.targetSets.map(String.init) ?? "nil")")
-
-        let targetSetAdvances = manager.completeSet(weight: 20, reps: 10)
-        let advancedOrChoosing = manager.isChoosingNextExercise
-            || (manager.transitionToExercise != nil && manager.transitionToExercise?.id != startingExercise.id)
-        check("2b.reaching target sets advances to next exercise",
-              targetSetAdvances && advancedOrChoosing,
-              "current=\(manager.currentExercise?.name ?? "nil"), transition=\(manager.transitionToExercise?.name ?? "nil"), choosing=\(manager.isChoosingNextExercise)")
-
-        manager.stopTimerFromCompanion()
+        check("2b.Finish Exercise is primary on the final target set",
+              manager.currentSetNumber == exercise.targetSets && manager.hasReachedCurrentExerciseTarget,
+              "set=\(manager.currentSetNumber), target=\(exercise.targetSets ?? 0)")
     }
 
     // MARK: - Suspicion 3: WeightRatioEngine called with allSessions: []

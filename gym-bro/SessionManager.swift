@@ -66,7 +66,7 @@ class SessionManager: Identifiable, Hashable {
 
     var hasReachedCurrentExerciseTarget: Bool {
         guard let targetSets = currentExercise?.targetSets else { return false }
-        return currentSetNumber > targetSets
+        return currentSetNumber >= targetSets
     }
 
     var lastSet: WorkoutSet? {
@@ -164,12 +164,11 @@ class SessionManager: Identifiable, Hashable {
         }
     }
 
-    @discardableResult
-    func logSet(weight: Double, reps: Int) -> Bool {
+    func logSet(weight: Double, reps: Int) {
         guard let session = activeSession,
               let exercise = currentExercise,
               let context = modelContext else {
-            return false
+            return
         }
         let wasTimerActive = isRestTimerActive || isTimerExpired
         WorkoutPersistence.logWeightSet(
@@ -182,26 +181,6 @@ class SessionManager: Identifiable, Hashable {
             in: context
         )
         WatchWorkoutBridge.shared.publishCurrentState()
-        return true
-    }
-
-    @discardableResult
-    func completeSet(weight: Double, reps: Int) -> Bool {
-        let setNumberBeingCompleted = currentSetNumber
-        let reachesTarget: Bool
-        if let targetSets = currentExercise?.targetSets {
-            reachesTarget = setNumberBeingCompleted >= targetSets
-        } else {
-            reachesTarget = false
-        }
-        guard logSet(weight: weight, reps: reps) else { return false }
-
-        if reachesTarget {
-            return nextExercise()
-        }
-
-        startTimer()
-        return true
     }
 
     func logDurationSet(minutes: Int) {

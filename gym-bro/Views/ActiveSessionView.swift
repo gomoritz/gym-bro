@@ -598,12 +598,7 @@ struct ActiveSessionView: View {
             else {
                 return
             }
-
-            let success = sessionManager.completeSet(weight: weightValue, reps: repsValue)
-            setLogged.toggle()
-            if !success {
-                showEndSessionAlert = true
-            }
+            sessionManager.logSet(weight: weightValue, reps: repsValue)
         } else {
             guard let durationValue = Int(duration),
                   durationValue > 0
@@ -611,9 +606,10 @@ struct ActiveSessionView: View {
                 return
             }
             sessionManager.logDurationSet(minutes: durationValue)
-            setLogged.toggle()
-            sessionManager.startTimer()
         }
+
+        setLogged.toggle()
+        sessionManager.startTimer()
     }
 
     private func finishExercise() {
